@@ -10,7 +10,7 @@ import time
 from PySide6.QtCore import QObject, Signal, Slot, QCoreApplication
 
 # Importamos la configuración
-from config import PORT, BAUDRATE, TIMEOUT
+from config import BAUDRATE, TIMEOUT
 
 class SerialWorker(QObject):
     """Maneja la comunicación serial en un hilo separado para evitar que la UI se congele."""
@@ -19,10 +19,11 @@ class SerialWorker(QObject):
     connection_status = Signal(bool, str)       # (is_connected, message)
     write_result = Signal(object)               # bytes enviados o None
 
-    def __init__(self):
+    def __init__(self, port):
         super().__init__()
         self.running = False
         self.serial_port = None
+        self.port = port
 
     @Slot()
     def run(self):
@@ -31,7 +32,7 @@ class SerialWorker(QObject):
         try:
             # Configuración del puerto serial según el protocolo del TVK6 (7S2)
             self.serial_port = serial.Serial(
-                port=PORT,
+                port=self.port,
                 baudrate=BAUDRATE,
                 bytesize=serial.SEVENBITS,
                 parity=serial.PARITY_SPACE,  # Paridad 'S' (Space)
@@ -41,10 +42,10 @@ class SerialWorker(QObject):
                 rtscts=False,
                 dsrdtr=False
             )
-            self.connection_status.emit(True, f"CONECTADO: Puerto {PORT} abierto a {BAUDRATE} 7S2.")
+            self.connection_status.emit(True, f"CONECTADO: Puerto {self.port} abierto a {BAUDRATE} 7S2.")
         except Exception as e:
             self.serial_port = None
-            self.connection_status.emit(False, f"ERROR: No se pudo abrir {PORT}: {e}")
+            self.connection_status.emit(False, f"ERROR: No se pudo abrir {self.port}: {e}")
             self.running = False
             return
 
@@ -67,7 +68,7 @@ class SerialWorker(QObject):
         try:
             if self.serial_port and self.serial_port.is_open:
                 self.serial_port.close()
-                self.connection_status.emit(False, f"DESCONECTADO: Puerto {PORT} cerrado.")
+                self.connection_status.emit(False, f"DESCONECTADO: Puerto {self.port} cerrado.")
         except Exception:
             pass
 

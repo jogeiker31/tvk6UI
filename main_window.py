@@ -12,7 +12,8 @@ from PySide6.QtCore import Signal, Slot, QThread
 
 # Importaciones de nuestros módulos
 from serial_worker import SerialWorker
-from config import ANSI_ESCAPE
+from config import ANSI_ESCAPE, PORT, BAUDRATE
+from ui_panels import MeasurementPanel
 
 class MainWindow(QMainWindow):
     """Ventana principal que carga la UI y conecta la lógica."""
@@ -28,6 +29,9 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.ui)
 
         self._find_widgets()
+        # Crear instancias de nuestros gestores de paneles
+        self.measurement_panel = MeasurementPanel(self.ui)
+
         self._connect_signals()
 
         self.thread = None
@@ -43,10 +47,6 @@ class MainWindow(QMainWindow):
         self.etiquetaEstado = self.ui.findChild(QLabel, 'etiquetaEstado')
         self.btnReconectar = self.ui.findChild(QPushButton, 'btnReconectar')
         self.btnLimpiarMonitor = self.ui.findChild(QPushButton, 'btnLimpiarMonitor')
-        
-        self.valorX = self.ui.findChild(QLabel, 'valorX')
-        self.valorK = self.ui.findChild(QLabel, 'valorK')
-        self.valorU1 = self.ui.findChild(QLabel, 'valorU1')
 
         self.btn_reset = self.ui.findChild(QPushButton, 'btn_reset')
         self.btn_menu_1_entradas = self.ui.findChild(QPushButton, 'btn_menu_1_entradas')
@@ -84,7 +84,7 @@ class MainWindow(QMainWindow):
              self.worker = None
 
         self.thread = QThread()
-        self.worker = SerialWorker()
+        self.worker = SerialWorker(port=PORT) # Pasamos el puerto al worker
         self.worker.moveToThread(self.thread)
 
         self.thread.started.connect(self.worker.run)
@@ -153,13 +153,6 @@ class MainWindow(QMainWindow):
         if not bytes_sent and self.monitorSalida:
             self.monitorSalida.appendPlainText(f"[ADVERTENCIA] Error de escritura. El puerto pudo haberse cerrado.")
 
-    @Slot()
-    def update_visual_display(self):
-        """Actualiza los QLabel del panel visual con los valores parseados."""
-        self.valorX.setText(str(self.parsed_values.get('X', '---')))
-        self.valorK.setText(str(self.parsed_values.get('K', '---')))
-        self.valorU1.setText(str(self.parsed_values.get('U1', '---')))
-
     @Slot(str)
     def display_data(self, raw_data):
         """Muestra la data RAW y realiza el parsing de datos Medidos."""
@@ -178,7 +171,8 @@ class MainWindow(QMainWindow):
             else:
                 self.monitorSalida.appendPlainText("--- [PARSING FALLIDO] No se encontraron suficientes valores X/U1. ---")
 
-        self.update_visual_display()
+        # Delegamos la actualización visual al panel correspondiente
+        self.measurement_panel.update_display(self.parsed_values)
 
     @Slot(str)
     def display_error(self, message):
