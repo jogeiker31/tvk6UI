@@ -6,69 +6,328 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
-    <height>600</height>
+    <width>950</width>
+    <height>650</height>
    </rect>
   </property>
-
-  <!-- Tamaño mínimo para evitar que aparezca pequeña -->
   <property name="minimumSize">
    <size>
-    <width>600</width>
-    <height>400</height>
+    <width>800</width>
+    <height>500</height>
    </size>
   </property>
-
-  <!-- Layout principal -->
+  <property name="windowTitle">
+   <string>TVK6 Serial Console</string>
+  </property>
   <layout class="QVBoxLayout" name="verticalLayout">
-
-    <!-- 1. ETIQUETA DE ESTADO -->
-    <item>
-     <widget class="QLabel" name="etiquetaEstado">
-      <property name="styleSheet">
-       <string notr="true">
+   <property name="spacing">
+    <number>10</number>
+   </property>
+   <property name="leftMargin">
+    <number>10</number>
+   </property>
+   <property name="topMargin">
+    <number>10</number>
+   </property>
+   <property name="rightMargin">
+    <number>10</number>
+   </property>
+   <property name="bottomMargin">
+    <number>10</number>
+   </property>
+   <!-- 1. ETIQUETA DE ESTADO SUPERIOR -->
+   <item>
+    <widget class="QLabel" name="etiquetaEstado">
+     <property name="styleSheet">
+      <string notr="true">
         QLabel {
-         font-weight: bold;
-         padding: 8px;
-         border-radius: 5px;
-         background-color: #555555;
-         color: white;
+          font-weight: bold;
+          padding: 8px;
+          border-radius: 5px;
+          background-color: #555555;
+          color: white;
         }
-       </string>
-      </property>
-      <property name="text">
-       <string>Inicializando...</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignCenter</set>
-      </property>
-     </widget>
-    </item>
-
-    <!-- 2. MONITOR DE SALIDA -->
-    <item>
-     <widget class="QPlainTextEdit" name="monitorSalida">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-        <horstretch>0</horstretch>
-        <verstretch>1</verstretch>
-       </sizepolicy>
-      </property>
-     </widget>
-    </item>
-
-    <!-- 3. CAMPO DE COMANDO -->
-    <item>
-     <widget class="QLineEdit" name="campoComando">
-      <property name="placeholderText">
-       <string>Escribe el comando (ej: reset, 1, 2)...</string>
-      </property>
-     </widget>
-    </item>
-
+        </string>
+     </property>
+     <property name="text">
+      <string>Inicializando...</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+    </widget>
+   </item>
+   <!-- 2. CONTENEDOR PRINCIPAL: CONSOLA (IZQ) vs UI (DER) -->
+   <item>
+    <layout class="QHBoxLayout" name="mainHBoxLayout" stretch="3,1">
+     <!-- 2.1 CONSOLA SERIAL (IZQUIERDA - 3/4 ancho) -->
+     <item>
+      <layout class="QVBoxLayout" name="consoleVBoxLayout">
+       <item>
+        <widget class="QLabel" name="label_consola">
+         <property name="text">
+          <string>Monitor Serial RAW (VT100)</string>
+         </property>
+         <property name="font">
+          <font>
+           <weight>Bold</weight>
+          </font>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPlainTextEdit" name="monitorSalida">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+           <horstretch>0</horstretch>
+           <verstretch>1</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">
+            QPlainTextEdit {
+              background-color: #1e1e1e;
+              color: #00ff00;
+              border: 1px solid #333;
+              font-family: Consolas, 'Courier New', monospace;
+              font-size: 9pt;
+              padding: 5px;
+              border-radius: 3px;
+            }
+            </string>
+         </property>
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
+         <property name="placeholderText">
+          <string>Esperando datos seriales...</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="campoComando">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>30</height>
+          </size>
+         </property>
+         <property name="placeholderText">
+          <string>Escribe el comando (ej: reset, 1, 2)...</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <!-- 2.2 PANEL DE CONTROL (DERECHA - 1/4 ancho) -->
+     <item>
+      <layout class="QVBoxLayout" name="controlVBoxLayout">
+       <item>
+        <widget class="QGroupBox" name="groupBoxDatos">
+         <property name="title">
+          <string>Valores de Medición (Parseados)</string>
+         </property>
+         <property name="flat">
+          <bool>false</bool>
+         </property>
+         <layout class="QFormLayout" name="formLayout">
+          <property name="rowWrapPolicy">
+           <enum>QFormLayout::WrapAllRows</enum>
+          </property>
+          <item row="0" column="0">
+           <widget class="QLabel" name="labelX">
+            <property name="text">
+             <string>X [r/kWh]:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLabel" name="valorX">
+            <property name="font">
+             <font>
+              <weight>Bold</weight>
+             </font>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">color: #28a745;</string>
+            </property>
+            <property name="text">
+             <string>---</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="labelK">
+            <property name="text">
+             <string>K:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QLabel" name="valorK">
+            <property name="font">
+             <font>
+              <weight>Bold</weight>
+             </font>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">color: #007bff;</string>
+            </property>
+            <property name="text">
+             <string>---</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="labelU1">
+            <property name="text">
+             <string>U1 [V]:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QLabel" name="valorU1">
+            <property name="font">
+             <font>
+              <weight>Bold</weight>
+             </font>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">color: #ffc107;</string>
+            </property>
+            <property name="text">
+             <string>---</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <!-- Botones de Acción -->
+       <item>
+        <widget class="QGroupBox" name="groupBoxAcciones">
+         <property name="title">
+          <string>Comandos Rápidos</string>
+         </property>
+         <layout class="QVBoxLayout" name="buttonVBoxLayout">
+          <item>
+           <widget class="QPushButton" name="btn_reset">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>35</height>
+             </size>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">background-color: #dc3545; color: white; border-radius: 5px;</string>
+            </property>
+            <property name="text">
+             <string>RESET (Ctrl+C)</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_menu_1_entradas">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>35</height>
+             </size>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">background-color: #17a2b8; color: white; border-radius: 5px;</string>
+            </property>
+            <property name="text">
+             <string>1. ENTRADAS</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_menu_2_calibrar">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>35</height>
+             </size>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">background-color: #28a745; color: white; border-radius: 5px;</string>
+            </property>
+            <property name="text">
+             <string>2. CALIBRAR</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btn_menu_3_control">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>35</height>
+             </size>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">background-color: #ffc107; color: black; border-radius: 5px;</string>
+            </property>
+            <property name="text">
+             <string>3. CONTROL</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btnReconectar">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>35</height>
+             </size>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">background-color: #007bff; color: white; border-radius: 5px;</string>
+            </property>
+            <property name="text">
+             <string>Reconectar</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btnLimpiarMonitor">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>35</height>
+             </size>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">background-color: #6c757d; color: white; border-radius: 5px;</string>
+            </property>
+            <property name="text">
+             <string>Limpiar Consola</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
   </layout>
  </widget>
-
  <resources/>
  <connections/>
 </ui>
