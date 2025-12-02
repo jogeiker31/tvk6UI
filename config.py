@@ -11,5 +11,8 @@ BAUDRATE = 4800
 TIMEOUT = 2
 
 # --- Expresiones Regulares ---
-# Limpia códigos de escape ANSI/VT100 (crucial para el parsing)
-ANSI_ESCAPE = re.compile(r'\x1b\[[0-?]*[ -/]*[@-~]')
+# Regex mejorada para limpiar todos los códigos de escape ANSI/VT100,
+# incluyendo secuencias CSI (ESC [...) y otras como (ESC # ...), y códigos de un solo carácter.
+# Esta regex simple y agresiva elimina cualquier secuencia que comience con ESC (\x1b)
+# y los caracteres de control SO/SI. Esto es más robusto para la salida del TVK6.
+ANSI_ESCAPE = re.compile(r'(\x1b\[[0-9;?]*[A-Za-z])|(\x1b[#()][A-Z0-9])|[\x0e\x0f]')

@@ -43,6 +43,13 @@ class SerialWorker(QObject):
                 dsrdtr=False
             )
             self.connection_status.emit(True, f"CONECTADO: Puerto {self.port} abierto a {BAUDRATE} 7S2.")
+            
+            # --- INICIO DE LA MODIFICACIÓN ---
+            # Hacemos una pausa de 1 segundo. Algunos dispositivos necesitan un momento
+            # para estar listos después de que se abre el puerto serial.
+            time.sleep(1)
+            self.write_command('reset') # Ahora enviamos el RESET.
+            # --- FIN DE LA MODIFICACIÓN ---
         except Exception as e:
             self.serial_port = None
             self.connection_status.emit(False, f"ERROR: No se pudo abrir {self.port}: {e}")
@@ -82,6 +89,8 @@ class SerialWorker(QObject):
         try:
             if command.lower() == 'reset':
                 bytes_to_send = b'\x03'  # Ctrl+C
+            elif command.lower() == 'esc': # El nombre 'esc' se mantiene internamente, pero ahora envía CR.
+                bytes_to_send = b'\r'  # Código ASCII para Retorno de Carro (Enter)
             else:
                 bytes_to_send = (command + '\r').encode('ascii')
 

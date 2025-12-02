@@ -60,21 +60,44 @@
    <!-- 2. CONTENEDOR PRINCIPAL: CONSOLA (IZQ) vs UI (DER) -->
    <item>
     <layout class="QHBoxLayout" name="mainHBoxLayout" stretch="3,1">
-     <!-- 2.1 CONSOLA SERIAL (IZQUIERDA - 3/4 ancho) -->
+     <!-- 2.1 ÁREA DE CONSOLA (IZQUIERDA) -->
      <item>
       <layout class="QVBoxLayout" name="consoleVBoxLayout">
+       <!-- 2.1.1 BARRA DE HERRAMIENTAS DE LA CONSOLA -->
        <item>
-        <widget class="QLabel" name="label_consola">
-         <property name="text">
-          <string>Monitor Serial RAW (VT100)</string>
-         </property>
-         <property name="font">
-          <font>
-           <weight>Bold</weight>
-          </font>
-         </property>
-        </widget>
+        <layout class="QHBoxLayout" name="consoleHeaderLayout">
+         <item>
+          <widget class="QLabel" name="label_consola">
+           <property name="text">
+            <string>Monitor Serial RAW (VT100)</string>
+           </property>
+           <property name="font">
+            <font>
+             <weight>Bold</weight>
+            </font>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="headerSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item><widget class="QPushButton" name="btnReconectar"><property name="text"><string>Reconectar</string></property></widget></item>
+         <item><widget class="QPushButton" name="btnRetornar"><property name="text"><string>Retorno (Enter)</string></property></widget></item>
+         <item><widget class="QPushButton" name="btn_reset"><property name="text"><string>RESET (Ctrl+C)</string></property></widget></item>
+         <item><widget class="QPushButton" name="btnLimpiarMonitor"><property name="text"><string>Limpiar Consola</string></property></widget></item>
+        </layout>
        </item>
+       <!-- 2.1.2 MONITOR DE TEXTO -->
        <item>
         <widget class="QPlainTextEdit" name="monitorSalida">
          <property name="sizePolicy">
@@ -104,6 +127,7 @@
          </property>
         </widget>
        </item>
+       <!-- 2.1.3 CAMPO DE ENTRADA DE COMANDOS -->
        <item>
         <widget class="QLineEdit" name="campoComando">
          <property name="minimumSize">
@@ -119,7 +143,7 @@
        </item>
       </layout>
      </item>
-     <!-- 2.2 PANEL DE CONTROL (DERECHA - 1/4 ancho) -->
+     <!-- 2.2 PANEL DERECHO -->
      <item>
       <layout class="QVBoxLayout" name="controlVBoxLayout">
        <item>
@@ -205,107 +229,12 @@
        </item>
        <!-- Botones de Acción -->
        <item>
-        <widget class="QGroupBox" name="groupBoxAcciones">
+        <widget class="QGroupBox" name="groupBoxMenuDinamico">
          <property name="title">
           <string>Comandos Rápidos</string>
          </property>
-         <layout class="QVBoxLayout" name="buttonVBoxLayout">
-          <item>
-           <widget class="QPushButton" name="btn_reset">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>35</height>
-             </size>
-            </property>
-            <property name="styleSheet">
-             <string notr="true">background-color: #dc3545; color: white; border-radius: 5px;</string>
-            </property>
-            <property name="text">
-             <string>RESET (Ctrl+C)</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="btn_menu_1_entradas">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>35</height>
-             </size>
-            </property>
-            <property name="styleSheet">
-             <string notr="true">background-color: #17a2b8; color: white; border-radius: 5px;</string>
-            </property>
-            <property name="text">
-             <string>1. ENTRADAS</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="btn_menu_2_calibrar">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>35</height>
-             </size>
-            </property>
-            <property name="styleSheet">
-             <string notr="true">background-color: #28a745; color: white; border-radius: 5px;</string>
-            </property>
-            <property name="text">
-             <string>2. CALIBRAR</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="btn_menu_3_control">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>35</height>
-             </size>
-            </property>
-            <property name="styleSheet">
-             <string notr="true">background-color: #ffc107; color: black; border-radius: 5px;</string>
-            </property>
-            <property name="text">
-             <string>3. CONTROL</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="btnReconectar">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>35</height>
-             </size>
-            </property>
-            <property name="styleSheet">
-             <string notr="true">background-color: #007bff; color: white; border-radius: 5px;</string>
-            </property>
-            <property name="text">
-             <string>Reconectar</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="btnLimpiarMonitor">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>35</height>
-             </size>
-            </property>
-            <property name="styleSheet">
-             <string notr="true">background-color: #6c757d; color: white; border-radius: 5px;</string>
-            </property>
-            <property name="text">
-             <string>Limpiar Consola</string>
-            </property>
-           </widget>
-          </item>
+         <layout class="QVBoxLayout" name="dynamicButtonVBoxLayout">
+          <!-- Este layout se llenará dinámicamente con código -->
          </layout>
         </widget>
        </item>
