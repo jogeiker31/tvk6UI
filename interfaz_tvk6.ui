@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>InterfazTVK6</class>
+ <widget class="QWidget" name="InterfazTVK6">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+
+  <!-- Tamaño mínimo para evitar que aparezca pequeña -->
+  <property name="minimumSize">
+   <size>
+    <width>600</width>
+    <height>400</height>
+   </size>
+  </property>
+
+  <!-- Layout principal -->
+  <layout class="QVBoxLayout" name="verticalLayout">
+
+    <!-- 1. ETIQUETA DE ESTADO -->
+    <item>
+     <widget class="QLabel" name="etiquetaEstado">
+      <property name="styleSheet">
+       <string notr="true">
+        QLabel {
+         font-weight: bold;
+         padding: 8px;
+         border-radius: 5px;
+         background-color: #555555;
+         color: white;
+        }
+       </string>
+      </property>
+      <property name="text">
+       <string>Inicializando...</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
+     </widget>
+    </item>
+
+    <!-- 2. MONITOR DE SALIDA -->
+    <item>
+     <widget class="QPlainTextEdit" name="monitorSalida">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>1</verstretch>
+       </sizepolicy>
+      </property>
+     </widget>
+    </item>
+
+    <!-- 3. CAMPO DE COMANDO -->
+    <item>
+     <widget class="QLineEdit" name="campoComando">
+      <property name="placeholderText">
+       <string>Escribe el comando (ej: reset, 1, 2)...</string>
+      </property>
+     </widget>
+    </item>
+
+  </layout>
+ </widget>
+
+ <resources/>
+ <connections/>
+</ui>
