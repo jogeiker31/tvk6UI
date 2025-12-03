@@ -92,7 +92,7 @@ class SerialWorker(QObject):
         try:
             if command.lower() == 'reset':
                 bytes_to_send = b'\x03'  # Ctrl+C
-            elif command.lower() == 'esc': # El nombre 'esc' se mantiene internamente, pero ahora envía CR.
+            elif command.lower() == 'esc':
                 bytes_to_send = b'\r'  # Código ASCII para Retorno de Carro (Enter)
             else:
                 bytes_to_send = (command + '\r').encode('ascii')

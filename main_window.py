@@ -73,6 +73,9 @@ class ScreenEmulator:
                         elif command == 'C': # Cursor Forward (CUF)
                             num_cols = int(params[0]) if params and params[0] else 1
                             self.cursor_pos[1] = min(self.cols - 1, self.cursor_pos[1] + num_cols)
+                        elif command == 'D': # Cursor Backward (CUB)
+                            num_cols = int(params[0]) if params and params[0] else 1
+                            self.cursor_pos[1] = max(0, self.cursor_pos[1] - num_cols)
                         elif command == 'K': # Erase in Line (EL)
                             if not params_str or params_str == '0': # Por defecto: borrar desde el cursor hasta el final de la línea
                                 row, col = self.cursor_pos
@@ -94,7 +97,9 @@ class ScreenEmulator:
                 # --- FIN DE LA MODIFICACIÓN ---
             else: # No es una secuencia de escape, es un carácter normal
                 # Ignoramos caracteres de control no imprimibles como SO/SI (0x0e, 0x0f)
-                if char not in '\x0e\x0f\r\n':
+                if char == '\n':
+                    self.cursor_pos[0] += 1 # Mover a la siguiente línea
+                elif char not in '\x0e\x0f\r':
                     row, col = self.cursor_pos
                     if row < self.rows and col < self.cols:
                         self.screen[row][col] = char
@@ -155,14 +160,17 @@ class MainWindow(QMainWindow):
         self.btn_reset.clicked.connect(lambda: self.send_command('reset'))
         self.btnLimpiarMonitor.clicked.connect(self.clear_monitor)
         
-        # Atajos de teclado
-        self.btnRetornar.setShortcut(QKeySequence(Qt.Key.Key_Return))
+        # --- INICIO DE LA MODIFICACIÓN: Corrección de doble comando ---
+        # Se elimina el atajo global para la tecla Enter (Return).
+        # El envío al presionar Enter en el campo de texto ya se maneja con la señal `returnPressed`.
+        # Mantener este atajo causaba que se enviara el comando del campo Y el comando 'esc' del botón.
         self.btn_reset.setShortcut(QKeySequence("Ctrl+R")) # Ctrl+C es para copiar
 
 
     def _clean_ansi_codes(self, text):
         """Limpia los códigos de escape ANSI/VT100 del texto."""
-        return ANSI_ESCAPE.sub('', text)
+        cleaned_text = ANSI_ESCAPE.sub('', text)
+        return cleaned_text.replace('\x0e', '').replace('\x0f', '')
 
     def start_serial_worker(self):
         """Inicia o reinicia el QThread y el SerialWorker."""
@@ -236,20 +244,42 @@ class MainWindow(QMainWindow):
 
         # --- INICIO DE LA MODIFICACIÓN ---
         # Si el comando implica un cambio de pantalla (navegación, reset, retorno),
-        # limpiamos la consola ANTES de enviar el comando para una transición limpia.
-        if command.isdigit() or command.lower() in ['reset', 'esc']:
+        # limpiamos la consola ANTES de enviar el comando para una transición limpia,
+        # EXCEPTO si estamos en modo de edición de datos.
+        is_navigation_command = command.isdigit() or command.lower() in ['reset', 'esc']
+
+        # --- INICIO DE LA MODIFICACIÓN: Evitar borrado en modo de selección de campo ---
+        # No borramos la pantalla si estamos en DATOS_MEDIDOR_MENU y presionamos un dígito,
+        # ya que esto es para seleccionar un campo, no para navegar.
+        # --- INICIO DE LA MODIFICACIÓN: Lógica de retorno desde DATOS_MEDIDOR ---
+        if command.lower() == 'esc' and self.menu_manager.current_state == 'DATOS_MEDIDOR_MENU':
             self.clear_monitor()
-            if command.lower() == 'reset':
+            self.menu_manager.set_state('ENTRADAS_MENU') # Preparamos para volver al menú de entradas
+        # --- FIN DE LA MODIFICACIÓN ---
+        elif is_navigation_command and self.menu_manager.current_state not in ['DATA_INPUT_MODE', 'DATOS_MEDIDOR_MENU']:
+            self.clear_monitor()
+            # Si es 'reset' o 'esc', volvemos al estado inicial para detectar el menú principal.
+            if command.lower() in ['reset', 'esc']:
                 self.menu_manager.set_state('INIT')
 
             # --- INICIO DE LA MODIFICACIÓN: Transición de Estado ---
             # Si estamos en el menú principal y se presiona '1', cambiamos al estado del menú de entradas.
             if self.menu_manager.current_state == 'MAIN_MENU' and command == '1':
                 self.menu_manager.set_state('ENTRADAS_MENU')
-            # Aquí añadiremos más transiciones para otros botones y menús.
-            # elif self.menu_manager.current_state == 'MAIN_MENU' and command == '2':
-            #     self.menu_manager.set_state('CALIBRAR_MENU')
+            # Si estamos en el menú de Entradas y se presiona '1', vamos al menú de Datos Medidor.
+            elif self.menu_manager.current_state == 'ENTRADAS_MENU' and command == '1':
+                self.menu_manager.set_state('DATOS_MEDIDOR_MENU')
+            # Si estamos en Datos Medidor y presionamos un dígito, entramos en modo edición.
+            # Si estamos en el menú principal y se presiona '2', vamos al menú de Calibración.
+            elif self.menu_manager.current_state == 'MAIN_MENU' and command == '2':
+                self.menu_manager.set_state('CALIBRAR_MENU')
             # --- FIN DE LA MODIFICACIÓN ---
+        elif self.menu_manager.current_state == 'DATA_INPUT_MODE':
+            # Después de enviar el valor, volvemos al menú anterior para re-evaluar la pantalla.
+            self.menu_manager.set_state('DATOS_MEDIDOR_MENU')
+        elif self.menu_manager.current_state == 'DATOS_MEDIDOR_MENU' and command.isdigit():
+            # Si estamos en el menú de datos y presionamos un dígito, entramos en modo de edición.
+            self.menu_manager.set_state('DATOS_MEDIDOR_MENU')
         # --- FIN DE LA MODIFICACIÓN ---
 
         if not self.thread or not self.thread.isRunning() or not self.worker.serial_port or not self.worker.serial_port.is_open:
@@ -281,14 +311,29 @@ class MainWindow(QMainWindow):
         self.monitorSalida.setPlainText(screen_text) # Mostrar el texto emulado en la consola
         
         # Ahora usamos el texto reconstruido de la pantalla para el parsing
-        if "X =" in screen_text and "U1 =" in screen_text:
-            numbers = re.findall(r'[\d]+\.[\d]+|[\d]+', screen_text) # Corregido: usar screen_text
-            
-            if len(numbers) >= 2:
-                self.parsed_values['X'] = numbers[0] 
-                self.parsed_values['K'] = numbers[0] 
-                self.parsed_values['U1'] = numbers[-1]
+        # --- INICIO DE LA MODIFICACIÓN: Parsing robusto ---
+        # Regex para buscar explícitamente los valores usando grupos de captura.
+        # El lookbehind (?<=...) no funciona con patrones de longitud variable como \s*.
+        # En su lugar, capturamos el número con () y lo extraemos con .group(1).
+        x_match = re.search(r'X\s*=\s*([0-9.]+)', screen_text)
+        k_match = re.search(r'K\s*=\s*([0-9.]+)', screen_text)
+        u1_match = re.search(r'U1\s*=\s*([0-9.]+)', screen_text)
 
+        # Solo actualizamos si encontramos los patrones. Si no, mantenemos los valores antiguos.
+        # Esto es clave para cuando el TVK6 solo envía una actualización parcial de la pantalla.
+        if x_match:
+            self.parsed_values['X'] = x_match.group(1)
+        # Si no hay 'X =', no borramos el valor anterior.
+
+        if k_match:
+            self.parsed_values['K'] = k_match.group(1)
+        # Si no hay 'K =', no borramos el valor anterior.
+
+        if u1_match:
+            self.parsed_values['U1'] = u1_match.group(1)
+        # Si no hay 'U1 =', no borramos el valor anterior.
+        # --- FIN DE LA MODIFICACIÓN ---
+        
         # Delegamos la actualización visual al panel correspondiente
         self.measurement_panel.update_display(self.parsed_values)
         

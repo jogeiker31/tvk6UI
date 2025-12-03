@@ -20,7 +20,17 @@ class MenuManager:
     # El \s* permite cero o más espacios. El lookahead (?=\d|$) se detiene justo antes del siguiente dígito.
     ENTRADAS_MENU_REGEX = re.compile(r'(\d)\s*([A-ZÁÉÍÓÚ\s\.]+?)(?=\d|$)', re.UNICODE)
 
-    def __init__(self, parent_ui, main_window, history_size=5):
+    # Regex específica para el MENÚ "DATOS MEDIDOR".
+    # Busca patrones como "1 X [r/kWh]", "2 K", etc., incluyendo corchetes y barras.
+    # Esta regex es más robusta: busca un dígito seguido de un espacio, al principio de la línea de menú.
+    # (^|\s{2,}) asegura que estamos al inicio de la línea o después de varios espacios.
+    DATOS_MEDIDOR_MENU_REGEX = re.compile(r'(?:^|\s{2,})(\d)\s+([A-Z0-9\[\]./].*?)(?=\s+\d\s+|$)', re.UNICODE)
+
+    # Regex específica para el MENÚ "CALIBRACION".
+    # Busca patrones como "1 COMIENZO", "2 x.x   x.xx", etc.
+    CALIBRAR_MENU_REGEX = re.compile(r'(\d)\s+([A-Za-z0-9./\s]+?)(?=\s{2,}\d\s|$)', re.UNICODE)
+
+    def __init__(self, parent_ui, main_window, history_size=5): # history_size ya no se usa pero lo dejamos por compatibilidad
         """
         Inicializa el gestor de menú.
         :param parent_ui: Referencia a la UI cargada (self.ui).
@@ -30,8 +40,6 @@ class MenuManager:
         self.dynamic_menu_group_box = parent_ui.findChild(QGroupBox, 'groupBoxMenuDinamico')
         self.dynamic_menu_layout = self.dynamic_menu_group_box.layout()
         self.buttons = []
-        self.line_history = []
-        self.history_size = history_size
 
         # --- INICIO DE LA MODIFICACIÓN: MÁQUINA DE ESTADOS ---
         self.current_state = 'INIT' # Estado inicial
@@ -41,7 +49,6 @@ class MenuManager:
 
     def reset_history(self):
         """Limpia el historial de líneas, el menú actual y resetea el estado."""
-        self.line_history = []
         self.current_menu_options = None
         self.clear_menu()
 
@@ -70,17 +77,8 @@ class MenuManager:
         
         :param cleaned_data: String de datos recibidos del serial, ya sin códigos ANSI.
         """
-        # Añadimos las nuevas líneas limpias al historial.
-        # Esto es crucial para reconstruir la pantalla si los datos llegan fragmentados.
-        new_lines = cleaned_data.strip().splitlines()
-        self.line_history.extend(new_lines)
-        # Mantenemos el historial a un tamaño razonable para evitar acumulación excesiva.
-        if len(self.line_history) > self.history_size:
-            self.line_history = self.line_history[-self.history_size:]
-
-        # Unimos todo el historial en una sola línea para aplicar el regex.
-        # Esto maneja los casos donde el menú se fragmenta en múltiples recepciones.
-        full_screen_text_for_parsing = " ".join(self.line_history).replace('\n', ' ')
+        # Usamos el texto de la pantalla directamente. El emulador ya nos da la vista completa.
+        full_screen_text_for_parsing = cleaned_data
 
         # Si el estado es INIT, asumimos que estamos esperando el menú principal.
         if self.current_state == 'INIT':
@@ -90,7 +88,7 @@ class MenuManager:
 
         # Lógica de parsing específica para cada estado
         if self.current_state == 'MAIN_MENU':
-            menu_matches = tuple(self.MAIN_MENU_REGEX.findall(full_screen_text_for_parsing))
+            menu_matches = tuple(self.MAIN_MENU_REGEX.findall(full_screen_text_for_parsing.replace('\n', ' ')))
 
             # Si encontramos los botones y son diferentes a los que ya mostramos
             if menu_matches and menu_matches != self.current_menu_options:
@@ -110,8 +108,8 @@ class MenuManager:
             # La palabra clave para este menú es "DAT.MEDID."
             if "DAT.MEDID." in full_screen_text_for_parsing:
                 # Debugging: Imprimimos el texto que se está usando para el regex
-                print(f"text for parsing (ENTRADAS): {full_screen_text_for_parsing!r}")
-                menu_matches = tuple(self.ENTRADAS_MENU_REGEX.findall(full_screen_text_for_parsing))
+                print(f"text for parsing (ENTRADAS): {full_screen_text_for_parsing.replace(chr(10), ' ')}")
+                menu_matches = tuple(self.ENTRADAS_MENU_REGEX.findall(full_screen_text_for_parsing.replace('\n', ' ')))
                 print(f"MENU MATCHES (ENTRADAS): {menu_matches!r}")
                 if menu_matches and menu_matches != self.current_menu_options:
                     self.current_menu_options = menu_matches
@@ -121,6 +119,56 @@ class MenuManager:
                     for number, text in menu_matches:
                         # Limpiamos el texto para quedarnos solo con la parte relevante del menú
                         # Simplemente limpiamos espacios al inicio/final.
+                        clean_text = text.strip()
+                        button = self.create_button(number, clean_text)
+                        self.dynamic_menu_layout.addWidget(button)
+                        self.buttons.append(button)
+        
+        elif self.current_state == 'DATOS_MEDIDOR_MENU':
+            # La palabra clave para este menú es "DATOS MEDIDOR" o "X ="
+            if "DATOS MEDIDOR" in full_screen_text_for_parsing or "X =" in full_screen_text_for_parsing:
+                # Debugging: Imprimimos el texto que se está usando para el regex
+                print(f"text for parsing (DATOS MEDIDOR): {full_screen_text_for_parsing.replace(chr(10), ' ')}")
+                # --- INICIO DE LA MODIFICACIÓN: Aplicar regex solo a la última línea ---
+                # Dividimos la pantalla en líneas y tomamos la última que no esté vacía.
+                last_line = next((line for line in reversed(full_screen_text_for_parsing.split('\n')) if line.strip()), "")
+                menu_matches = tuple(self.DATOS_MEDIDOR_MENU_REGEX.findall(last_line))
+                # --- FIN DE LA MODIFICACIÓN ---
+                print(f"MENU MATCHES (DATOS MEDIDOR): {menu_matches}")
+                
+                # Si encontramos botones, los redibujamos.
+                # Simplificamos la lógica: si encontramos botones y son diferentes a los que ya mostramos, actualizamos.
+                if menu_matches and tuple(sorted(menu_matches)) != self.current_menu_options:
+                    self.current_menu_options = tuple(sorted(menu_matches)) # Guardamos el nuevo estado
+                    self.clear_menu()
+                    # --- INICIO DE LA MODIFICACIÓN: Título dinámico ---
+                    # Si el título de la pantalla está presente, lo usamos.
+                    title_match = re.search(r'DATOS\s+MEDIDOR', full_screen_text_for_parsing)
+                    title = title_match.group(0).strip() if title_match else "Datos Medidor"
+                    # --- FIN DE LA MODIFICACIÓN ---
+                    self.dynamic_menu_group_box.setTitle("Datos Medidor")
+
+                    for number, text in menu_matches:
+                        clean_text = text.strip()
+                        button = self.create_button(number, clean_text)
+                        self.dynamic_menu_layout.addWidget(button)
+                        self.buttons.append(button)
+        
+        elif self.current_state == 'CALIBRAR_MENU':
+            # La palabra clave para este menú es "CALIBRACION"
+            if "CALIBRACION" in full_screen_text_for_parsing:
+                # Debugging
+                last_line = next((line for line in reversed(full_screen_text_for_parsing.split('\n')) if line.strip()), "")
+                print(f"text for parsing (CALIBRAR): {last_line!r}")
+                menu_matches = tuple(self.CALIBRAR_MENU_REGEX.findall(last_line))
+                print(f"MENU MATCHES (CALIBRAR): {menu_matches}")
+
+                if menu_matches and tuple(sorted(menu_matches)) != self.current_menu_options:
+                    self.current_menu_options = tuple(sorted(menu_matches))
+                    self.clear_menu()
+                    self.dynamic_menu_group_box.setTitle("Calibración")
+
+                    for number, text in menu_matches:
                         clean_text = text.strip()
                         button = self.create_button(number, clean_text)
                         self.dynamic_menu_layout.addWidget(button)
