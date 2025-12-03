@@ -1,0 +1,38 @@
+{
+  "states": {
+    "INIT": {
+      "detection_keywords": ["ENTRADAS", "CALIBRAR"],
+      "transition_to": "MAIN_MENU"
+    },
+    "MAIN_MENU": {
+      "title": "Menú Principal",
+      "regex": "(\\d)\\s+([A-ZÁÉÍÓÚ\\s\\.]+?)(?=\\s+\\d|$)",
+      "transitions": {
+        "1": "ENTRADAS_MENU",
+        "2": "CALIBRAR_MENU"
+      }
+    },
+    "ENTRADAS_MENU": {
+      "title": "Entradas",
+      "detection_keywords": ["DAT.MEDID."],
+      "regex": "(\\d)\\s*([A-ZÁÉÍÓÚ\\s\\.]+?)(?=\\s*\\d\\s*[A-ZÁÉÍÓÚ]|$)",
+      "transitions": {
+        "1": "DATOS_MEDIDOR_MENU"
+      }
+    },
+    "DATOS_MEDIDOR_MENU": {
+      "title": "Datos Medidor",
+      "detection_keywords": ["DATOS MEDIDOR", "X ="],
+      "regex": "(?:^|\\s{2,})(\\d)\\s+([A-Z0-9\\[\\]\\./].*?)(?=\\s+\\d\\s+|$)"
+    },
+    "CALIBRAR_MENU": {
+      "title": "Calibración",
+      "detection_keywords": ["CALIBRACION"],
+      "regex": "(\\d)\\s+([A-Za-z0-9./\\s]+?)(?=\\s+\\d\\s+|$)",
+      "transitions": { "4": "CALIBRAR_DATA_ENTRY" }
+    },
+    "CALIBRAR_DATA_ENTRY": {
+      "title": "Calibración (Editando)"
+    }
+  }
+}
