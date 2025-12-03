@@ -28,7 +28,9 @@ class MenuManager:
 
     # Regex específica para el MENÚ "CALIBRACION".
     # Busca patrones como "1 COMIENZO", "2 x.x   x.xx", etc.
-    CALIBRAR_MENU_REGEX = re.compile(r'(\d)\s+([A-Za-z0-9./\s]+?)(?=\s{2,}\d\s|$)', re.UNICODE)
+    # El lookahead (?=\s+\d\s|$) busca el inicio del siguiente botón o el final de la línea.
+    # Es no codicioso (non-greedy) para capturar solo hasta el siguiente botón.
+    CALIBRAR_MENU_REGEX = re.compile(r'(\d)\s+([A-Za-z0-9./\s]+?)(?=\s+\d\s|$)', re.UNICODE)
 
     def __init__(self, parent_ui, main_window, history_size=5): # history_size ya no se usa pero lo dejamos por compatibilidad
         """
@@ -166,7 +168,7 @@ class MenuManager:
                 if menu_matches and tuple(sorted(menu_matches)) != self.current_menu_options:
                     self.current_menu_options = tuple(sorted(menu_matches))
                     self.clear_menu()
-                    self.dynamic_menu_group_box.setTitle("Calibración")
+                    self.dynamic_menu_group_box.setTitle("Calibración") # Título del menú
 
                     for number, text in menu_matches:
                         clean_text = text.strip()
@@ -174,9 +176,15 @@ class MenuManager:
                         self.dynamic_menu_layout.addWidget(button)
                         self.buttons.append(button)
 
+        # --- INICIO DE LA MODIFICACIÓN: Lógica de título simplificada ---
+        # Si los botones del menú de calibración están visibles, pero el estado no es CALIBRAR_MENU,
+        # significa que estamos en modo de edición.
+        if self.current_state == 'CALIBRAR_DATA_ENTRY' and self.current_menu_options:
+            self.dynamic_menu_group_box.setTitle("Calibración (Editando)")
+        # --- FIN DE LA MODIFICACIÓN ---
+
     def set_state(self, new_state):
         """Permite a la ventana principal cambiar el estado del menú."""
         self.current_state = new_state
-        # Al cambiar de estado, forzamos la limpieza del menú anterior.
         self.current_menu_options = None
         self.clear_menu()

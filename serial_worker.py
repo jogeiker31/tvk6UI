@@ -91,8 +91,14 @@ class SerialWorker(QObject):
 
         try:
             if command.lower() == 'reset':
-                bytes_to_send = b'\x03'  # Ctrl+C
-            elif command.lower() == 'esc':
+                bytes_to_send = b'\x03'  # Ctrl+C para resetear
+            elif command.lower() == 'enter': # Comando para enviar solo un Retorno de Carro
+                bytes_to_send = b'\r'
+            elif command.lower() == 'esc_key': # Comando para enviar solo el carácter de Escape
+                bytes_to_send = b'\x1b'
+            elif command.lower() == 'del': # Comando para enviar Backspace
+                bytes_to_send = b'\x08'
+            elif command.lower() == 'esc': # El botón de retorno de la UI
                 bytes_to_send = b'\r'  # Código ASCII para Retorno de Carro (Enter)
             else:
                 bytes_to_send = (command + '\r').encode('ascii')

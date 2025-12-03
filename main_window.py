@@ -255,32 +255,35 @@ class MainWindow(QMainWindow):
         if command.lower() == 'esc' and self.menu_manager.current_state == 'DATOS_MEDIDOR_MENU':
             self.clear_monitor()
             self.menu_manager.set_state('ENTRADAS_MENU') # Preparamos para volver al menú de entradas
-        # --- FIN DE LA MODIFICACIÓN ---
-        elif is_navigation_command and self.menu_manager.current_state not in ['DATA_INPUT_MODE', 'DATOS_MEDIDOR_MENU']:
+        # Si estamos en CALIBRAR y presionamos 'esc', volvemos al menú principal.
+        elif command.lower() == 'esc' and self.menu_manager.current_state == 'CALIBRAR_MENU':
+            self.clear_monitor()
+            self.menu_manager.set_state('MAIN_MENU')
+        elif is_navigation_command and self.menu_manager.current_state not in ['DATOS_MEDIDOR_MENU', 'CALIBRAR_MENU', 'CALIBRAR_DATA_ENTRY']:
             self.clear_monitor()
             # Si es 'reset' o 'esc', volvemos al estado inicial para detectar el menú principal.
             if command.lower() in ['reset', 'esc']:
                 self.menu_manager.set_state('INIT')
 
-            # --- INICIO DE LA MODIFICACIÓN: Transición de Estado ---
             # Si estamos en el menú principal y se presiona '1', cambiamos al estado del menú de entradas.
             if self.menu_manager.current_state == 'MAIN_MENU' and command == '1':
                 self.menu_manager.set_state('ENTRADAS_MENU')
             # Si estamos en el menú de Entradas y se presiona '1', vamos al menú de Datos Medidor.
             elif self.menu_manager.current_state == 'ENTRADAS_MENU' and command == '1':
                 self.menu_manager.set_state('DATOS_MEDIDOR_MENU')
-            # Si estamos en Datos Medidor y presionamos un dígito, entramos en modo edición.
-            # Si estamos en el menú principal y se presiona '2', vamos al menú de Calibración.
             elif self.menu_manager.current_state == 'MAIN_MENU' and command == '2':
                 self.menu_manager.set_state('CALIBRAR_MENU')
-            # --- FIN DE LA MODIFICACIÓN ---
-        elif self.menu_manager.current_state == 'DATA_INPUT_MODE':
-            # Después de enviar el valor, volvemos al menú anterior para re-evaluar la pantalla.
+
+        # --- INICIO DE LA MODIFICACIÓN: Lógica de estado simplificada ---
+        # Transiciones de estado basadas en el estado actual y el comando
+        if self.menu_manager.current_state == 'MAIN_MENU' and command == '1':
+            self.menu_manager.set_state('ENTRADAS_MENU')
+        elif self.menu_manager.current_state == 'MAIN_MENU' and command == '2':
+            self.menu_manager.set_state('CALIBRAR_MENU')
+        elif self.menu_manager.current_state == 'ENTRADAS_MENU' and command == '1':
             self.menu_manager.set_state('DATOS_MEDIDOR_MENU')
-        elif self.menu_manager.current_state == 'DATOS_MEDIDOR_MENU' and command.isdigit():
-            # Si estamos en el menú de datos y presionamos un dígito, entramos en modo de edición.
-            self.menu_manager.set_state('DATOS_MEDIDOR_MENU')
-        # --- FIN DE LA MODIFICACIÓN ---
+        elif self.menu_manager.current_state == 'CALIBRAR_MENU' and command == '4':
+            self.menu_manager.set_state('CALIBRAR_DATA_ENTRY') # Entramos en modo edición
 
         if not self.thread or not self.thread.isRunning() or not self.worker.serial_port or not self.worker.serial_port.is_open:
             if self.monitorSalida:
@@ -353,6 +356,24 @@ class MainWindow(QMainWindow):
         if Qt.Key.Key_0 <= key <= Qt.Key.Key_9:
             command = str(key - Qt.Key.Key_0)
             self.send_command(command)
+        # --- INICIO DE LA MODIFICACIÓN: Navegación por campos ---
+        # Si estamos en modo de entrada de datos de calibración, las flechas y Enter tienen funciones especiales.
+        elif self.menu_manager.current_state in ['CALIBRAR_DATA_ENTRY', 'DATOS_MEDIDOR_MENU']:
+            if key in [Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Right]:
+                # Enter o Flecha Derecha envían un retorno de carro para pasar al siguiente campo.
+                self.send_command('enter')
+                event.accept() # Marcamos el evento como manejado
+            elif key == Qt.Key.Key_Left:
+                # Flecha Izquierda envía un escape para retroceder.
+                self.send_command('esc_key')
+                event.accept()
+            elif key in [Qt.Key.Key_Backspace, Qt.Key.Key_Delete]:
+                # La tecla de borrar envía un backspace para borrar en el TVK6
+                self.send_command('del')
+                event.accept()
+            else:
+                super().keyPressEvent(event)
+        # --- FIN DE LA MODIFICACIÓN ---
         else:
             super().keyPressEvent(event)
 
