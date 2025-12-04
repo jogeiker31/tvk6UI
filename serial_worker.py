@@ -100,7 +100,16 @@ class SerialWorker(QObject):
             elif command.lower() == 'esc': # El botón de retorno de la UI envía un retorno de carro
                 bytes_to_send = b'\r'  # Código ASCII para Retorno de Carro (Enter)
             else:
-                bytes_to_send = (command + '\r').encode('ascii')
+                # Si el comando es un solo dígito, es un comando de navegación y se envía de una vez.
+                if len(command) == 1 and command.isdigit():
+                    bytes_to_send = (command + '\r').encode('ascii')
+                else:
+                    # Para datos de varios caracteres, enviamos de forma pausada para no saturar el buffer del TVK6.
+                    for char in command:
+                        self.serial_port.write(char.encode('ascii'))
+                        print(f"==> SENT (char): {char.encode('ascii')!r}")
+                        time.sleep(0.1) # Pausa de 100ms entre caracteres
+                    bytes_to_send = b'\r' # Enviamos el RETURN final por separado
 
             # --- INICIO DE LA MODIFICACIÓN: Log de comandos enviados a la consola ---
             print(f"==> SENT: {bytes_to_send!r}")

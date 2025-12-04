@@ -289,11 +289,10 @@ class MainWindow(QMainWindow):
         # --- INICIO DE LA MODIFICACIÓN: Lógica de envío contextual ---
         # Si el comando viene del campo de texto, es un dato para el dispositivo, no un comando de navegación.
         # Por lo tanto, solo lo enviamos al worker.
-        if is_from_input_field:
-            self.send_to_worker.emit(command)
-        else: # Si es un comando de un botón o atajo, notificamos a ambos.
-            self.command_to_statemanager.emit(command)
-            self.send_to_worker.emit(command)
+        # La lógica de si añadir \r o no la maneja el SerialWorker.
+        if command: # Asegurarse de que el comando no esté vacío
+            self.command_to_statemanager.emit(command) # Notificar al StateManager
+            self.send_to_worker.emit(command) # Enviar al SerialWorker
         # --- FIN DE LA MODIFICACIÓN ---
 
         if not self.thread or not self.thread.isRunning() or not self.worker.serial_port or not self.worker.serial_port.is_open:
@@ -304,13 +303,13 @@ class MainWindow(QMainWindow):
             return
 
         if self.campoComando:
-             self.campoComando.clear()
+            self.campoComando.clear()
 
     @Slot()
     def start_quick_calibration(self):
         """Inicia la secuencia de calibración rápida."""
         # reset -> 1 -> 1 -> 1 -> 138.9 -> enter -> esc -> esc -> 2 -> 3 -> 1
-        commands = ['reset', '1', '1', '1', '138.9', 'esc', 'esc', '2', '3',"4","enter","enter","enter","-0.2","0.5" ,"enter",'1']
+        commands = ['reset', '1', '1', '1', '138.9', 'esc', 'esc', '2', '3',"4"," "," "," ","-0.2","0.5" ,"enter",'1']
         self.sequence_manager.start_sequence(commands)
 
     @Slot(object)
@@ -348,18 +347,19 @@ class MainWindow(QMainWindow):
 
         # Si se presiona una tecla numérica (0-9) y el campo de texto no tiene el foco
         # Y NO estamos en un modo de entrada de datos.
-        if Qt.Key.Key_0 <= key <= Qt.Key.Key_9 and self.campoComando and not self.campoComando.hasFocus() and current_state not in ['CALIBRAR_DATA_ENTRY', 'DATOS_MEDIDOR_MENU']:
+        if Qt.Key.Key_0 <= key <= Qt.Key.Key_9 and self.campoComando and not self.campoComando.hasFocus() and current_state not in ['CALIBRAR_DATA_ENTRY']:
             command = str(key - Qt.Key.Key_0)
-            self.command_to_statemanager.emit(command)
+            self.command_to_statemanager.emit(command) # Notificar al StateManager
             # Añadimos esta línea para que el comando también se envíe al dispositivo
             self.send_to_worker.emit(command)
         # --- INICIO DE LA MODIFICACIÓN: Navegación por campos ---
         # Si estamos en modo de entrada de datos de calibración, las flechas y Enter tienen funciones especiales.
-        elif current_state in ['CALIBRAR_DATA_ENTRY', 'DATOS_MEDIDOR_MENU']:
-            # Si se presiona Enter/Return y el foco NO está en el campo de texto,
-            # lo tratamos como un comando de navegación para pasar al siguiente campo.
-            if key in [Qt.Key.Key_Return, Qt.Key.Key_Enter] and not self.campoComando.hasFocus():
-                self.send_command('enter') # Envía un retorno de carro para avanzar
+        elif current_state in ['CALIBRAR_DATA_ENTRY']:
+            # En el modo de entrada de datos, solo las flechas y el borrado son atajos globales. El "Enter"
+            # es manejado exclusivamente por el QLineEdit para evitar dobles envíos.
+            # La flecha derecha puede actuar como "Enter" para avanzar al siguiente campo.
+            if key == Qt.Key.Key_Right:
+                self.send_command('enter') # 'enter' se traduce a \r en el worker
                 event.accept() # Marcamos el evento como manejado
             elif key == Qt.Key.Key_Left:
                 # Flecha Izquierda envía un escape para retroceder.
