@@ -39,8 +39,16 @@ class ModelManagerDialog(QDialog):
         self.table.setHorizontalHeaderLabels(["ID", "Nombre (Modelo)", "Constante (X)", "K", "ds", "di"])
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.setColumnHidden(0, True) # Ocultar columna ID
+
+        # Ajustar el tamaño de las columnas para dar prioridad a Nombre y Constante
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(1, QHeaderView.Stretch)  # Nombre (Modelo)
+        header.setSectionResizeMode(2, QHeaderView.Stretch)  # Constante (X)
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents) # K
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents) # ds
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents) # di
+
         table_layout.addWidget(self.table)
         table_group.setLayout(table_layout)
 
@@ -82,11 +90,17 @@ class ModelManagerDialog(QDialog):
         calibration_layout = QVBoxLayout()
         self.selected_model_label = QLabel("Selecciona un modelo para calibrar.")
         self.selected_model_label.setWordWrap(True)
-        self.start_calibration_button = QPushButton("Iniciar Calibración con este Modelo")
-        self.start_calibration_button.setStyleSheet("background-color: #28a745; color: white; font-weight: bold;")
+        self.start_calibration_button = QPushButton("Iniciar Calibración")
+        self.start_calibration_button.setMinimumHeight(40)
+        self.start_calibration_button.setStyleSheet("background-color: #28a745; color: white; font-weight: bold; font-size: 10pt;")
+        
+        calibration_hint_label = QLabel("Iniciar calibración con este modelo")
+        calibration_hint_label.setAlignment(Qt.AlignCenter)
+        calibration_hint_label.setStyleSheet("font-size: 8pt; color: #6c757d;")
         
         calibration_layout.addWidget(self.selected_model_label)
         calibration_layout.addWidget(self.start_calibration_button)
+        calibration_layout.addWidget(calibration_hint_label)
         self.calibration_group.setLayout(calibration_layout)
         self.calibration_group.setVisible(False) # Oculto por defecto
 

@@ -7,12 +7,14 @@ las interacciones y la orquestación del SerialWorker.
 import re
 from collections import deque
 
-from PySide6.QtWidgets import QMainWindow, QLineEdit, QPlainTextEdit, QLabel, QPushButton, QVBoxLayout, QGroupBox, QMenu
+from PySide6.QtWidgets import (QMainWindow, QLineEdit, QPlainTextEdit, QLabel, QPushButton, QVBoxLayout, QGroupBox, QMenu, QComboBox, QStackedWidget, QCheckBox,
+                               QGraphicsDropShadowEffect)
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import Signal, Slot, QThread, Qt, QTimer, QObject
 from PySide6.QtGui import QKeySequence
 
 # Importaciones de nuestros módulos
+from serial.tools import list_ports
 from serial_worker import SerialWorker
 from config import ANSI_ESCAPE, PORT, BAUDRATE
 from ui_panels import MeasurementPanel
@@ -169,6 +171,12 @@ class MainWindow(QMainWindow):
         self.db_manager = DatabaseManager()
 
         self._connect_signals()
+        
+        # Configurar animaciones y efectos visuales
+        self._setup_visual_effects()
+
+        # Llenar la lista de puertos COM
+        self.refresh_com_ports()
 
         self.thread = None
         self.worker = None
@@ -183,12 +191,18 @@ class MainWindow(QMainWindow):
         self.etiquetaEstado = self.ui.findChild(QLabel, 'etiquetaEstado')
         
         # Botones de la barra de herramientas de la consola
+        self.comboPuerto = self.ui.findChild(QComboBox, 'comboPuerto')
+        self.btnRefrescarPuertos = self.ui.findChild(QPushButton, 'btnRefrescarPuertos')
         self.btnReconectar = self.ui.findChild(QPushButton, 'btnReconectar')
         self.btnRetornar = self.ui.findChild(QPushButton, 'btnRetornar')
         self.btn_reset = self.ui.findChild(QPushButton, 'btn_reset')
-        self.btnCalibracionRapida = self.ui.findChild(QPushButton, 'btnCalibracionRapida')
         self.btnLimpiarMonitor = self.ui.findChild(QPushButton, 'btnLimpiarMonitor')
         self.btnGestionarModelos = self.ui.findChild(QPushButton, 'btnGestionarModelos')
+
+        # Widgets para el cambio de vista
+        self.viewSwitcher = self.ui.findChild(QCheckBox, 'viewSwitcher')
+        self.viewStackedWidget = self.ui.findChild(QStackedWidget, 'viewStackedWidget')
+        self.graphicViewTitle = self.ui.findChild(QLabel, 'graphicViewTitle')
 
     def _connect_signals(self):
         """Conecta todas las señales de la UI a sus respectivos slots."""
@@ -197,13 +211,16 @@ class MainWindow(QMainWindow):
         
         # Conectar botones fijos
         self.command_to_statemanager.connect(self.state_manager.process_command)
+        self.btnRefrescarPuertos.clicked.connect(self.refresh_com_ports)
         self.btnReconectar.clicked.connect(self.start_serial_worker)
         self.btnRetornar.clicked.connect(lambda: self.send_command('esc'))
         self.btn_reset.clicked.connect(lambda: self.send_command('reset'))
-        self.btnCalibracionRapida.clicked.connect(self.start_quick_calibration)
         self.btnLimpiarMonitor.clicked.connect(self.clear_monitor)
         self.btnGestionarModelos.clicked.connect(self.open_model_manager)
         self.state_manager.clear_screen_requested.connect(self.clear_monitor) # Conectar la nueva señal
+
+        # Conectar el interruptor de vista
+        self.viewSwitcher.toggled.connect(self.switch_view)
 
         # Conectar el gestor de secuencias
         self.sequence_manager.send_command.connect(self.send_command)
@@ -223,11 +240,51 @@ class MainWindow(QMainWindow):
         dialog.start_calibration_requested.connect(self._run_calibration_sequence)
         dialog.exec() # Usamos exec() para que sea una ventana modal (bloqueante)
 
+    def _setup_visual_effects(self):
+        """Configura animaciones y otros efectos para los widgets."""
+        if not self.btnGestionarModelos:
+            return
+
+        # Crear un efecto de sombra que usaremos para la animación de "latido"
+        self.shadow_effect = QGraphicsDropShadowEffect(self.btnGestionarModelos)
+        self.shadow_effect.setBlurRadius(15)
+        self.shadow_effect.setColor(Qt.GlobalColor.green)
+        self.shadow_effect.setOffset(0, 0)
+        self.btnGestionarModelos.setGraphicsEffect(self.shadow_effect)
+
+        # Usar un QTimer para crear un ciclo de animación suave
+        self.anim_timer = QTimer(self)
+        self.anim_timer.timeout.connect(self._animate_pulse)
+        self.anim_timer.start(20) # Actualizar 50 veces por segundo
 
     def _clean_ansi_codes(self, text):
         """Limpia los códigos de escape ANSI/VT100 del texto."""
         cleaned_text = ANSI_ESCAPE.sub('', text)
         return cleaned_text.replace('\x0e', '').replace('\x0f', '')
+
+    @Slot(bool)
+    def switch_view(self, is_graphic_mode):
+        """Cambia entre la vista de consola y la vista gráfica."""
+        if is_graphic_mode:
+            self.viewStackedWidget.setCurrentIndex(1) # Ir a la página de gráficos
+        else:
+            self.viewStackedWidget.setCurrentIndex(0) # Ir a la página de consola
+
+    @Slot()
+    def refresh_com_ports(self):
+        """Escanea los puertos COM disponibles y actualiza el QComboBox."""
+        if not self.comboPuerto:
+            return
+        
+        self.comboPuerto.clear()
+        ports = list_ports.comports()
+        if not ports:
+            self.comboPuerto.addItem("No hay puertos disponibles")
+            self.comboPuerto.setEnabled(False)
+        else:
+            for port in sorted(ports):
+                self.comboPuerto.addItem(port.device, port.description)
+            self.comboPuerto.setEnabled(True)
 
     def start_serial_worker(self):
         """Inicia o reinicia el QThread y el SerialWorker."""
@@ -246,7 +303,14 @@ class MainWindow(QMainWindow):
              self.worker = None
 
         self.thread = QThread()
-        self.worker = SerialWorker(port=PORT) # Pasamos el puerto al worker
+        
+        # Obtener el puerto seleccionado del ComboBox
+        selected_port = self.comboPuerto.currentText()
+        if "No hay puertos" in selected_port:
+            self.set_status(False, "Error: No se ha seleccionado un puerto COM válido.")
+            return
+
+        self.worker = SerialWorker(port=selected_port) # Pasamos el puerto seleccionado al worker
         self.worker.moveToThread(self.thread)
 
         self.thread.started.connect(self.worker.run)
@@ -332,23 +396,10 @@ class MainWindow(QMainWindow):
         self.btnReconectar.setEnabled(enabled)
         self.btnRetornar.setEnabled(enabled)
         self.btn_reset.setEnabled(enabled)
-        self.btnCalibracionRapida.setEnabled(enabled)
         self.campoComando.setEnabled(enabled)
         self.btnGestionarModelos.setEnabled(enabled)
 
     @Slot()
-    def start_quick_calibration(self):
-        """Muestra un menú para elegir el valor de X e iniciar la secuencia de calibración."""
-        menu = QMenu(self)
-        options = ["138.9", "225", "300"]
-
-        for option in options:
-            action = menu.addAction(f"Calibrar con X = {option}")
-            action.triggered.connect(lambda checked=False, val=option: self._run_calibration_sequence(val))
-
-        # Mostramos el menú debajo del botón
-        menu.exec(self.btnCalibracionRapida.mapToGlobal(self.btnCalibracionRapida.rect().bottomLeft()))
-
     def _run_calibration_sequence(self, params):
         """
         Construye y ejecuta la secuencia de calibración.
@@ -356,11 +407,7 @@ class MainWindow(QMainWindow):
         """
         self._set_ui_enabled(False)
 
-        if isinstance(params, str): # Calibración rápida desde el menú
-            x_value = params
-            k_value, ds_value, di_value = "1.0", "-0.2", "0.5" # Valores por defecto
-            self.etiquetaEstado.setText(f"Cargando calibración rápida con X = {x_value}...")
-        else: # Calibración desde el gestor de modelos
+        if isinstance(params, dict): # Calibración desde el gestor de modelos
             x_value = str(params['constante'])
             k_value = str(params['k'])
             ds_value = str(params['ds'])
@@ -384,6 +431,15 @@ class MainWindow(QMainWindow):
         """Se ejecuta cuando el SequenceManager ha terminado todos sus comandos."""
         self._set_ui_enabled(True)
         self.etiquetaEstado.setText(message)
+
+    def _animate_pulse(self):
+        """Función llamada por el QTimer para actualizar la animación."""
+        import math
+        # Usamos una función seno para crear un ciclo suave de crecimiento y decrecimiento
+        current_time = self.anim_timer.interval() * self.anim_timer.timerId() / 1000.0
+        pulse = (math.sin(current_time * 2) + 1) / 2 # Normalizado entre 0 y 1
+        blur_radius = 10 + pulse * 15 # Animar entre 10 y 25
+        self.shadow_effect.setBlurRadius(blur_radius)
 
     @Slot(str)
     def display_data(self, raw_data):
@@ -445,6 +501,8 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         """Asegura que el worker y el hilo terminen al cerrar la ventana."""
         # Cerrar la conexión de la base de datos
+        if self.anim_timer:
+            self.anim_timer.stop()
         self.db_manager.close()
         try:
             if self.worker:
