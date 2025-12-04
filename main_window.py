@@ -7,7 +7,7 @@ las interacciones y la orquestación del SerialWorker.
 import re
 from collections import deque
 
-from PySide6.QtWidgets import QMainWindow, QLineEdit, QPlainTextEdit, QLabel, QPushButton, QVBoxLayout, QGroupBox
+from PySide6.QtWidgets import QMainWindow, QLineEdit, QPlainTextEdit, QLabel, QPushButton, QVBoxLayout, QGroupBox, QMenu
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import Signal, Slot, QThread, Qt, QTimer, QObject
 from PySide6.QtGui import QKeySequence
@@ -40,10 +40,12 @@ class SequenceManager(QObject):
         if self.command_queue:
             command = self.command_queue.popleft()
             self.send_command.emit(command)
-            if self.command_queue: # Si aún quedan comandos, programar el siguiente
+            # Si aún quedan comandos, programar el siguiente.
+            # Si no quedan, emitir la señal de finalización inmediatamente.
+            if self.command_queue:
                 self.timer.start(self.delay)
-        else:
-            self.sequence_finished.emit("Secuencia de calibración rápida completada.")
+            else:
+                self.sequence_finished.emit("Secuencia de calibración rápida completada.")
 
 class ScreenEmulator:
     """Emulador simple de terminal VT100 para reconstruir la pantalla del TVK6."""
@@ -198,6 +200,7 @@ class MainWindow(QMainWindow):
 
         # Conectar el gestor de secuencias
         self.sequence_manager.send_command.connect(self.send_command)
+        self.sequence_manager.sequence_finished.connect(self._on_sequence_finished)
         
         # --- INICIO DE LA MODIFICACIÓN: Corrección de doble comando ---
         # Se elimina el atajo global para la tecla Enter (Return).
@@ -305,11 +308,32 @@ class MainWindow(QMainWindow):
         if self.campoComando:
             self.campoComando.clear()
 
+    def _set_ui_enabled(self, enabled):
+        """Habilita o deshabilita los controles principales de la UI durante una secuencia."""
+        self.btnReconectar.setEnabled(enabled)
+        self.btnRetornar.setEnabled(enabled)
+        self.btn_reset.setEnabled(enabled)
+        self.btnCalibracionRapida.setEnabled(enabled)
+        self.campoComando.setEnabled(enabled)
+
     @Slot()
     def start_quick_calibration(self):
-        """Inicia la secuencia de calibración rápida."""
-        # reset -> 1 -> 1 -> 1 -> 138.9 -> enter -> esc -> esc -> 2 -> 3 -> 1
-        commands = ['reset', '1', '1', '1', '138.9', 'esc', 'esc', '2', '3',"4"," "," "," ","-0.2","0.5" ,"enter",'1']
+        """Muestra un menú para elegir el valor de X e iniciar la secuencia de calibración."""
+        menu = QMenu(self)
+        options = ["138.9", "225", "300"]
+
+        for option in options:
+            action = menu.addAction(f"Calibrar con X = {option}")
+            action.triggered.connect(lambda checked=False, val=option: self._run_calibration_sequence(val))
+
+        # Mostramos el menú debajo del botón
+        menu.exec(self.btnCalibracionRapida.mapToGlobal(self.btnCalibracionRapida.rect().bottomLeft()))
+
+    def _run_calibration_sequence(self, x_value):
+        """Construye y ejecuta la secuencia de calibración con el valor de X seleccionado."""
+        self._set_ui_enabled(False)
+        self.etiquetaEstado.setText(f"Cargando calibración con X = {x_value}...")
+        commands = ['reset', '1', '1', '1', str(x_value), 'esc', 'esc', '2', '3', "4", " ", " ", " ", "-0.2", "0.5", "enter", '1']
         self.sequence_manager.start_sequence(commands)
 
     @Slot(object)
@@ -317,6 +341,12 @@ class MainWindow(QMainWindow):
         """Señal de confirmación de escritura."""
         if not bytes_sent and self.monitorSalida:
             self.monitorSalida.appendPlainText(f"[ADVERTENCIA] Error de escritura. El puerto pudo haberse cerrado.")
+
+    @Slot(str)
+    def _on_sequence_finished(self, message):
+        """Se ejecuta cuando el SequenceManager ha terminado todos sus comandos."""
+        self._set_ui_enabled(True)
+        self.etiquetaEstado.setText(message)
 
     @Slot(str)
     def display_data(self, raw_data):
