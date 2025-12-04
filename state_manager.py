@@ -79,14 +79,11 @@ class StateManager(QObject): # Inherit from QObject
         
         if command == 'esc':
             # Ver si hay una regla de escape específica en el JSON
-            if 'on_escape' in current_config:
-                self.set_state(current_config['on_escape'])
-            # Si no, usamos el historial
-            elif self.history:
-                previous_state = self.history.pop()
-                self.set_state(previous_state, from_history=True)
-            else: # Si no hay historial, volvemos al menú principal
+            # Si estamos en cualquier estado que no sea el menú principal, volvemos a él.
+            if self.current_state != 'MAIN_MENU':
+                self.clear_screen_requested.emit() # Limpiar pantalla al retornar al MAIN_MENU
                 self.set_state('MAIN_MENU')
+            # Si ya estamos en el menú principal, 'esc' no hace nada.
             return
         # --- FIN DE LA MODIFICACIÓN ---
 

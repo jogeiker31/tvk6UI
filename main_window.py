@@ -161,7 +161,7 @@ class MainWindow(QMainWindow):
         # Conectar botones fijos
         self.command_to_statemanager.connect(self.state_manager.process_command)
         self.btnReconectar.clicked.connect(self.start_serial_worker)
-        self.btnRetornar.clicked.connect(lambda: self.command_to_statemanager.emit('esc'))
+        self.btnRetornar.clicked.connect(lambda: self.send_command('esc'))
         self.btn_reset.clicked.connect(lambda: self.send_command('reset'))
         self.btnLimpiarMonitor.clicked.connect(self.clear_monitor)
         self.state_manager.clear_screen_requested.connect(self.clear_monitor) # Conectar la nueva señal

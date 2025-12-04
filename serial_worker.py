@@ -98,7 +98,7 @@ class SerialWorker(QObject):
                 bytes_to_send = b'\x1b'
             elif command.lower() == 'del': # Comando para enviar Backspace
                 bytes_to_send = b'\x08'
-            elif command.lower() == 'esc': # El botón de retorno de la UI
+            elif command.lower() == 'esc': # El botón de retorno de la UI envía un retorno de carro
                 bytes_to_send = b'\r'  # Código ASCII para Retorno de Carro (Enter)
             else:
                 bytes_to_send = (command + '\r').encode('ascii')
