@@ -23,7 +23,17 @@ class MeasurementPanel:
     def update_display(self, parsed_values):
         """
         Actualiza los QLabels con los nuevos valores del diccionario.
+
+        :param parsed_values: Un diccionario donde las claves son 'X', 'K', 'U1'
+                              y los valores son los datos a mostrar.
         """
-        self.valorX.setText(str(parsed_values.get('X', '---')))
-        self.valorK.setText(str(parsed_values.get('K', '---')))
-        self.valorU1.setText(str(parsed_values.get('U1', '---')))
+        # Usamos f-strings para formatear la salida, lo que puede ser útil
+        # si en el futuro necesitas añadir unidades o limitar decimales.
+        # Por ejemplo: f"{parsed_values.get('X', '---'):.2f}" para 2 decimales.
+        valor_x = parsed_values.get('X', '---')
+        valor_k = parsed_values.get('K', '---')
+        valor_u1 = parsed_values.get('U1', '---')
+
+        self.valorX.setText(f"{valor_x}")
+        self.valorK.setText(f"{valor_k}")
+        self.valorU1.setText(f"{valor_u1}")

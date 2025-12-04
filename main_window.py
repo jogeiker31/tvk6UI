@@ -18,6 +18,8 @@ from config import ANSI_ESCAPE, PORT, BAUDRATE
 from ui_panels import MeasurementPanel
 from menu_manager import MenuManager
 from state_manager import StateManager
+from database import DatabaseManager
+from ui_model_manager import ModelManagerDialog
 
 class SequenceManager(QObject):
     """Gestiona la ejecución de una secuencia de comandos con retardos."""
@@ -162,6 +164,9 @@ class MainWindow(QMainWindow):
         self.screen_emulator = ScreenEmulator()
         self.state_manager = StateManager(self.menu_manager)
         self.sequence_manager = SequenceManager(delay=2000, parent=self)
+        
+        # 1. Inicializar el gestor de la base de datos
+        self.db_manager = DatabaseManager()
 
         self._connect_signals()
 
@@ -183,6 +188,7 @@ class MainWindow(QMainWindow):
         self.btn_reset = self.ui.findChild(QPushButton, 'btn_reset')
         self.btnCalibracionRapida = self.ui.findChild(QPushButton, 'btnCalibracionRapida')
         self.btnLimpiarMonitor = self.ui.findChild(QPushButton, 'btnLimpiarMonitor')
+        self.btnGestionarModelos = self.ui.findChild(QPushButton, 'btnGestionarModelos')
 
     def _connect_signals(self):
         """Conecta todas las señales de la UI a sus respectivos slots."""
@@ -196,6 +202,7 @@ class MainWindow(QMainWindow):
         self.btn_reset.clicked.connect(lambda: self.send_command('reset'))
         self.btnCalibracionRapida.clicked.connect(self.start_quick_calibration)
         self.btnLimpiarMonitor.clicked.connect(self.clear_monitor)
+        self.btnGestionarModelos.clicked.connect(self.open_model_manager)
         self.state_manager.clear_screen_requested.connect(self.clear_monitor) # Conectar la nueva señal
 
         # Conectar el gestor de secuencias
@@ -207,6 +214,14 @@ class MainWindow(QMainWindow):
         # El envío al presionar Enter en el campo de texto ya se maneja con la señal `returnPressed`.
         # Mantener este atajo causaba que se enviara el comando del campo Y el comando 'esc' del botón.
         self.btn_reset.setShortcut(QKeySequence("Ctrl+R")) # Ctrl+C es para copiar
+
+    def open_model_manager(self):
+        """
+        Crea y muestra el diálogo para gestionar los modelos de medidores.
+        """
+        dialog = ModelManagerDialog(self.db_manager, self)
+        dialog.start_calibration_requested.connect(self._run_calibration_sequence)
+        dialog.exec() # Usamos exec() para que sea una ventana modal (bloqueante)
 
 
     def _clean_ansi_codes(self, text):
@@ -275,6 +290,10 @@ class MainWindow(QMainWindow):
         
         if "ERROR" in message and self.campoComando:
             self.campoComando.setEnabled(True)
+        
+        # El botón de gestionar modelos debe estar SIEMPRE habilitado.
+        if self.btnGestionarModelos:
+            self.btnGestionarModelos.setEnabled(True)
 
     @Slot(str)
     def send_command(self, command=None):
@@ -315,6 +334,7 @@ class MainWindow(QMainWindow):
         self.btn_reset.setEnabled(enabled)
         self.btnCalibracionRapida.setEnabled(enabled)
         self.campoComando.setEnabled(enabled)
+        self.btnGestionarModelos.setEnabled(enabled)
 
     @Slot()
     def start_quick_calibration(self):
@@ -329,11 +349,28 @@ class MainWindow(QMainWindow):
         # Mostramos el menú debajo del botón
         menu.exec(self.btnCalibracionRapida.mapToGlobal(self.btnCalibracionRapida.rect().bottomLeft()))
 
-    def _run_calibration_sequence(self, x_value):
-        """Construye y ejecuta la secuencia de calibración con el valor de X seleccionado."""
+    def _run_calibration_sequence(self, params):
+        """
+        Construye y ejecuta la secuencia de calibración.
+        :param params: Puede ser un string (valor de X) o un dict con {constante, k, ds, di}.
+        """
         self._set_ui_enabled(False)
-        self.etiquetaEstado.setText(f"Cargando calibración con X = {x_value}...")
-        commands = ['reset', '1', '1', '1', str(x_value), 'esc', 'esc', '2', '3', "4", " ", " ", " ", "-0.2", "0.5", "enter", '1']
+
+        if isinstance(params, str): # Calibración rápida desde el menú
+            x_value = params
+            k_value, ds_value, di_value = "1.0", "-0.2", "0.5" # Valores por defecto
+            self.etiquetaEstado.setText(f"Cargando calibración rápida con X = {x_value}...")
+        else: # Calibración desde el gestor de modelos
+            x_value = str(params['constante'])
+            k_value = str(params['k'])
+            ds_value = str(params['ds'])
+            di_value = str(params['di'])
+            self.etiquetaEstado.setText(f"Cargando calibración con modelo (X={x_value}, K={k_value})...")
+
+        # Secuencia de calibración actualizada
+        # Se eliminan los 'enter' explícitos después de x_value y k_value.
+        # El SerialWorker ya envía un \r después de transmitir un valor de múltiples caracteres.
+        commands = ['reset', '1', '1', '1', x_value, '2', k_value, 'esc', 'esc', '2', '3', "4", " ", " ", " ", ds_value, di_value, "enter", '1']
         self.sequence_manager.start_sequence(commands)
 
     @Slot(object)
@@ -407,6 +444,8 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """Asegura que el worker y el hilo terminen al cerrar la ventana."""
+        # Cerrar la conexión de la base de datos
+        self.db_manager.close()
         try:
             if self.worker:
                 self.worker.stop()
