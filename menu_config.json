@@ -1,10 +1,9 @@
 {
   "states": {
-    "INIT": {
-    },
+    "INIT": {},
     "MAIN_MENU": {
       "title": "Menú Principal",
-      "detection_keywords": ["LANDIS","GYR"],
+      "detection_keywords": ["LANDIS", "GYR"],
       "buttons": [
         { "number": "1", "text": "ENTRADAS" },
         { "number": "2", "text": "CALIBRAR" },
@@ -30,8 +29,9 @@
         { "number": "4", "text": "IMPRIMIR" },
         { "number": "5", "text": "FIN PROTOC" }
       ],
-      "transitions": { 
-        "1": { "target": "DATOS_MEDIDOR_MENU", "clear_screen": false }
+      "transitions": {
+        "1": { "target": "DATOS_MEDIDOR_MENU", "clear_screen": false },
+        "3": { "target": "TIT_PROTOC_MENU", "clear_screen": true }
       }
     },
     "DATOS_MEDIDOR_MENU": {
@@ -50,20 +50,28 @@
       "detection_keywords": ["CALIBRACION"],
       "buttons": [
         { "number": "1", "text": "COMIENZO" },
-        { "number": "2", "text": "VERIFICACION" },
-        { "number": "3", "text": "AJUSTE" },
-        { "number": "4", "text": "ENTRADA DATOS" }
+        { "number": "2", "text": "x.x   x.xx" },
+        { "number": "3", "text": "CONT/UNICA" },
+        { "number": "4", "text": "DATOS" }
       ],
-      "transitions": { "4": { "target": "CALIBRAR_DATA_ENTRY", "clear_screen": false } }
+      "transitions": {
+        "4": { "target": "CALIBRAR_DATA_ENTRY", "clear_screen": false }
+      }
     },
     "CALIBRAR_DATA_ENTRY": {
       "title": "Calibración (Editando)"
     },
-    "CERTIFICACION_MENU": {
-      "title": "Certificación"
-    },
+
     "PBA_SERIE_MENU": {
-      "title": "PBA Serie"
+      "title": "PBA Serie",
+      "detection_keywords": ["PBA", "SERIE", "COMIENZO"],
+      "buttons": [
+        { "number": "1", "text": "COMIENZO" },
+        { "number": "2", "text": "r" },
+        { "number": "3", "text": "Ys" },
+        { "number": "4", "text": "t [min]" },
+        { "number": "5", "text": "I1" }
+      ]
     },
     "ESTADISTICAS_MENU": {
       "title": "Estadísticas",
@@ -73,6 +81,17 @@
         { "number": "2", "text": "BORRAR" },
         { "number": "3", "text": "REEM.TABLA" },
         { "number": "4", "text": "IMPRIMIR" }
+      ]
+    },
+    "CERTIFICACION_MENU": {
+      "title": "Certificación",
+      "detection_keywords": ["CERTIFICACION", "PBA.RELOJ"],
+      "buttons": [
+        { "number": "1", "text": "PTO. CARGA" },
+        { "number": "2", "text": "PBAS.ADIC." },
+        { "number": "3", "text": "No.ENTRADA" },
+        { "number": "4", "text": "PBA.RELOJ." },
+        { "number": "5", "text": "PBA.DEMAND" }
       ]
     }
   }

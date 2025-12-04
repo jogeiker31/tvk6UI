@@ -108,11 +108,15 @@ class StateManager(QObject): # Inherit from QObject
 
     def set_state(self, new_state, from_history=False):
         """Establece un nuevo estado y notifica al MenuManager."""
-        if self.current_state != new_state and not from_history:
+        if self.current_state == new_state:
+            return # No hacer nada si el estado ya es el actual
+
+        if not from_history:
             # Solo añadimos al historial si es una navegación hacia adelante
             self.history.append(self.current_state)
             print(f"Transición de estado: {self.current_state} -> {new_state}")
-            self.current_state = new_state
+        
+        self.current_state = new_state
         
         new_state_config = self.config['states'].get(new_state)
         self.menu_manager.update_menu_config(new_state_config)
