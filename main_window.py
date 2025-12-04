@@ -6,7 +6,7 @@ las interacciones y la orquestación del SerialWorker.
 """
 import re
 
-from PySide6.QtWidgets import QMainWindow, QLineEdit, QPlainTextEdit, QLabel, QPushButton
+from PySide6.QtWidgets import QMainWindow, QLineEdit, QPlainTextEdit, QLabel, QPushButton, QVBoxLayout, QGroupBox
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import Signal, Slot, QThread, Qt
 from PySide6.QtGui import QKeySequence
@@ -16,6 +16,7 @@ from serial_worker import SerialWorker
 from config import ANSI_ESCAPE, PORT, BAUDRATE
 from ui_panels import MeasurementPanel
 from menu_manager import MenuManager
+from state_manager import StateManager
 
 class ScreenEmulator:
     """Emulador simple de terminal VT100 para reconstruir la pantalla del TVK6."""
@@ -113,6 +114,8 @@ class ScreenEmulator:
 class MainWindow(QMainWindow):
     """Ventana principal que carga la UI y conecta la lógica."""
     send_to_worker = Signal(str)
+    # Señal para enviar comandos desde la UI al StateManager
+    command_to_statemanager = Signal(str)
 
     def __init__(self, ui_file):
         super().__init__()
@@ -126,8 +129,9 @@ class MainWindow(QMainWindow):
         self._find_widgets()
         # Crear instancias de nuestros gestores de paneles
         self.measurement_panel = MeasurementPanel(self.ui)
-        self.menu_manager = MenuManager(self.ui, self, history_size=5)
+        self.menu_manager = MenuManager(self.ui, self)
         self.screen_emulator = ScreenEmulator()
+        self.state_manager = StateManager(self.menu_manager)
 
         self._connect_signals()
 
@@ -155,10 +159,12 @@ class MainWindow(QMainWindow):
             self.campoComando.returnPressed.connect(self.send_command)
         
         # Conectar botones fijos
+        self.command_to_statemanager.connect(self.state_manager.process_command)
         self.btnReconectar.clicked.connect(self.start_serial_worker)
-        self.btnRetornar.clicked.connect(lambda: self.send_command('esc'))
+        self.btnRetornar.clicked.connect(lambda: self.command_to_statemanager.emit('esc'))
         self.btn_reset.clicked.connect(lambda: self.send_command('reset'))
         self.btnLimpiarMonitor.clicked.connect(self.clear_monitor)
+        self.state_manager.clear_screen_requested.connect(self.clear_monitor) # Conectar la nueva señal
         
         # --- INICIO DE LA MODIFICACIÓN: Corrección de doble comando ---
         # Se elimina el atajo global para la tecla Enter (Return).
@@ -209,8 +215,9 @@ class MainWindow(QMainWindow):
             # --- INICIO DE LA MODIFICACIÓN ---
             # También reiniciamos el historial del gestor de menú.
             # Y reseteamos el emulador de pantalla para una transición limpia.
-            self.screen_emulator.reset()
-            self.menu_manager.reset_history()
+        # El StateManager se encarga ahora del historial.
+            self.screen_emulator.reset() # Resetear el emulador de pantalla
+            self.state_manager.set_state('INIT') # Resetear el estado de la máquina de estados
             # --- FIN DE LA MODIFICACIÓN ---
             
     @Slot(bool, str)
@@ -242,49 +249,8 @@ class MainWindow(QMainWindow):
         if not command:
             return
 
-        # --- INICIO DE LA MODIFICACIÓN ---
-        # Si el comando implica un cambio de pantalla (navegación, reset, retorno),
-        # limpiamos la consola ANTES de enviar el comando para una transición limpia,
-        # EXCEPTO si estamos en modo de edición de datos.
-        is_navigation_command = command.isdigit() or command.lower() in ['reset', 'esc']
-
-        # --- INICIO DE LA MODIFICACIÓN: Evitar borrado en modo de selección de campo ---
-        # No borramos la pantalla si estamos en DATOS_MEDIDOR_MENU y presionamos un dígito,
-        # ya que esto es para seleccionar un campo, no para navegar.
-        # --- INICIO DE LA MODIFICACIÓN: Lógica de retorno desde DATOS_MEDIDOR ---
-        if command.lower() == 'esc' and self.menu_manager.current_state == 'DATOS_MEDIDOR_MENU':
-            self.clear_monitor()
-            self.menu_manager.set_state('ENTRADAS_MENU') # Preparamos para volver al menú de entradas
-        # Si estamos en CALIBRAR y presionamos 'esc', volvemos al menú principal.
-        elif command.lower() == 'esc' and self.menu_manager.current_state == 'CALIBRAR_MENU':
-            self.clear_monitor()
-            self.menu_manager.set_state('MAIN_MENU')
-        elif is_navigation_command and self.menu_manager.current_state not in ['DATOS_MEDIDOR_MENU', 'CALIBRAR_MENU', 'CALIBRAR_DATA_ENTRY']:
-            self.clear_monitor()
-            # Si es 'reset' o 'esc', volvemos al estado inicial para detectar el menú principal.
-            if command.lower() in ['reset', 'esc']:
-                self.menu_manager.set_state('INIT')
-
-            # Si estamos en el menú principal y se presiona '1', cambiamos al estado del menú de entradas.
-            if self.menu_manager.current_state == 'MAIN_MENU' and command == '1':
-                self.menu_manager.set_state('ENTRADAS_MENU')
-            # Si estamos en el menú de Entradas y se presiona '1', vamos al menú de Datos Medidor.
-            elif self.menu_manager.current_state == 'ENTRADAS_MENU' and command == '1':
-                self.menu_manager.set_state('DATOS_MEDIDOR_MENU')
-            elif self.menu_manager.current_state == 'MAIN_MENU' and command == '2':
-                self.menu_manager.set_state('CALIBRAR_MENU')
-
-        # --- INICIO DE LA MODIFICACIÓN: Lógica de estado simplificada ---
-        # Transiciones de estado basadas en el estado actual y el comando
-        if self.menu_manager.current_state == 'MAIN_MENU' and command == '1':
-            self.menu_manager.set_state('ENTRADAS_MENU')
-        elif self.menu_manager.current_state == 'MAIN_MENU' and command == '2':
-            self.menu_manager.set_state('CALIBRAR_MENU')
-        elif self.menu_manager.current_state == 'ENTRADAS_MENU' and command == '1':
-            self.menu_manager.set_state('DATOS_MEDIDOR_MENU')
-        elif self.menu_manager.current_state == 'CALIBRAR_MENU' and command == '4':
-            self.menu_manager.set_state('CALIBRAR_DATA_ENTRY') # Entramos en modo edición
-
+        self.command_to_statemanager.emit(command)
+        # La limpieza de pantalla ahora es gestionada por el StateManager
         if not self.thread or not self.thread.isRunning() or not self.worker.serial_port or not self.worker.serial_port.is_open:
             if self.monitorSalida:
                 self.monitorSalida.appendPlainText(f"[ERROR LOCAL] No se pudo enviar '{command}': Puerto no conectado.")
@@ -313,35 +279,11 @@ class MainWindow(QMainWindow):
         
         self.monitorSalida.setPlainText(screen_text) # Mostrar el texto emulado en la consola
         
-        # Ahora usamos el texto reconstruido de la pantalla para el parsing
-        # --- INICIO DE LA MODIFICACIÓN: Parsing robusto ---
-        # Regex para buscar explícitamente los valores usando grupos de captura.
-        # El lookbehind (?<=...) no funciona con patrones de longitud variable como \s*.
-        # En su lugar, capturamos el número con () y lo extraemos con .group(1).
-        x_match = re.search(r'X\s*=\s*([0-9.]+)', screen_text)
-        k_match = re.search(r'K\s*=\s*([0-9.]+)', screen_text)
-        u1_match = re.search(r'U1\s*=\s*([0-9.]+)', screen_text)
-
-        # Solo actualizamos si encontramos los patrones. Si no, mantenemos los valores antiguos.
-        # Esto es clave para cuando el TVK6 solo envía una actualización parcial de la pantalla.
-        if x_match:
-            self.parsed_values['X'] = x_match.group(1)
-        # Si no hay 'X =', no borramos el valor anterior.
-
-        if k_match:
-            self.parsed_values['K'] = k_match.group(1)
-        # Si no hay 'K =', no borramos el valor anterior.
-
-        if u1_match:
-            self.parsed_values['U1'] = u1_match.group(1)
-        # Si no hay 'U1 =', no borramos el valor anterior.
-        # --- FIN DE LA MODIFICACIÓN ---
-        
-        # Delegamos la actualización visual al panel correspondiente
-        self.measurement_panel.update_display(self.parsed_values)
-        
-        # Delegamos la actualización del menú dinámico
-        self.menu_manager.update_menu(screen_text)
+        # El StateManager se encarga de todo:
+        # 1. Parsear datos de medición (X, K, U1) y actualizar el panel.
+        # 2. Detectar cambios de estado (ej. INIT -> MAIN_MENU).
+        # 3. Dibujar los botones del menú actual.
+        self.state_manager.process_screen_text(screen_text, self.measurement_panel)
 
     @Slot(str)
     def display_error(self, message):
@@ -352,13 +294,15 @@ class MainWindow(QMainWindow):
     def keyPressEvent(self, event):
         """Captura eventos de teclado para atajos numéricos."""
         key = event.key()
-        # Si se presiona una tecla numérica (0-9)
-        if Qt.Key.Key_0 <= key <= Qt.Key.Key_9:
+        # Si se presiona una tecla numérica (0-9) y el campo de texto no tiene el foco
+        if Qt.Key.Key_0 <= key <= Qt.Key.Key_9 and self.campoComando and not self.campoComando.hasFocus():
             command = str(key - Qt.Key.Key_0)
-            self.send_command(command)
+            self.command_to_statemanager.emit(command)
+            # Añadimos esta línea para que el comando también se envíe al dispositivo
+            self.send_to_worker.emit(command)
         # --- INICIO DE LA MODIFICACIÓN: Navegación por campos ---
         # Si estamos en modo de entrada de datos de calibración, las flechas y Enter tienen funciones especiales.
-        elif self.menu_manager.current_state in ['CALIBRAR_DATA_ENTRY', 'DATOS_MEDIDOR_MENU']:
+        elif self.state_manager.get_current_state_name() in ['CALIBRAR_DATA_ENTRY', 'DATOS_MEDIDOR_MENU']:
             if key in [Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Right]:
                 # Enter o Flecha Derecha envían un retorno de carro para pasar al siguiente campo.
                 self.send_command('enter')

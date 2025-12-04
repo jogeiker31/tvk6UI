@@ -1,0 +1,79 @@
+{
+  "states": {
+    "INIT": {
+    },
+    "MAIN_MENU": {
+      "title": "Menú Principal",
+      "detection_keywords": ["LANDIS","GYR"],
+      "buttons": [
+        { "number": "1", "text": "ENTRADAS" },
+        { "number": "2", "text": "CALIBRAR" },
+        { "number": "3", "text": "CONTROL" },
+        { "number": "4", "text": "PBA SERIE" },
+        { "number": "5", "text": "ESTADIST." }
+      ],
+      "transitions": {
+        "1": { "target": "ENTRADAS_MENU", "clear_screen": true },
+        "2": { "target": "CALIBRAR_MENU", "clear_screen": true },
+        "3": { "target": "CERTIFICACION_MENU", "clear_screen": true },
+        "4": { "target": "PBA_SERIE_MENU", "clear_screen": true },
+        "5": { "target": "ESTADISTICAS_MENU", "clear_screen": true }
+      }
+    },
+    "ENTRADAS_MENU": {
+      "title": "Entradas",
+      "detection_keywords": ["DAT.MEDID.", "DAT.SYST."],
+      "buttons": [
+        { "number": "1", "text": "DAT.MEDID." },
+        { "number": "2", "text": "DAT.SYST." },
+        { "number": "3", "text": "TIT.PROTOC" },
+        { "number": "4", "text": "IMPRIMIR" },
+        { "number": "5", "text": "FIN PROTOC" }
+      ],
+      "transitions": { 
+        "1": { "target": "DATOS_MEDIDOR_MENU", "clear_screen": false }
+      }
+    },
+    "DATOS_MEDIDOR_MENU": {
+      "title": "Datos Medidor",
+      "detection_keywords": ["DATOS MEDIDOR", "X ="],
+      "buttons": [
+        { "number": "1", "text": "X [r/kWh]" },
+        { "number": "2", "text": "K" },
+        { "number": "3", "text": "M" },
+        { "number": "4", "text": "T [min]" },
+        { "number": "5", "text": "U1 [V]" }
+      ]
+    },
+    "CALIBRAR_MENU": {
+      "title": "Calibración",
+      "detection_keywords": ["CALIBRACION"],
+      "buttons": [
+        { "number": "1", "text": "COMIENZO" },
+        { "number": "2", "text": "VERIFICACION" },
+        { "number": "3", "text": "AJUSTE" },
+        { "number": "4", "text": "ENTRADA DATOS" }
+      ],
+      "transitions": { "4": { "target": "CALIBRAR_DATA_ENTRY", "clear_screen": false } }
+    },
+    "CALIBRAR_DATA_ENTRY": {
+      "title": "Calibración (Editando)"
+    },
+    "CERTIFICACION_MENU": {
+      "title": "Certificación"
+    },
+    "PBA_SERIE_MENU": {
+      "title": "PBA Serie"
+    },
+    "ESTADISTICAS_MENU": {
+      "title": "Estadísticas",
+      "detection_keywords": ["ESTADISTICAS", "TABLA"],
+      "buttons": [
+        { "number": "1", "text": "TABLA" },
+        { "number": "2", "text": "BORRAR" },
+        { "number": "3", "text": "REEM.TABLA" },
+        { "number": "4", "text": "IMPRIMIR" }
+      ]
+    }
+  }
+}
