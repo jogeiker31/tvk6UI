@@ -5,10 +5,11 @@ Contiene la clase MainWindow, que gestiona la interfaz de usuario,
 las interacciones y la orquestación del SerialWorker.
 """
 import re
+from collections import deque
 
 from PySide6.QtWidgets import QMainWindow, QLineEdit, QPlainTextEdit, QLabel, QPushButton, QVBoxLayout, QGroupBox
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore import Signal, Slot, QThread, Qt
+from PySide6.QtCore import Signal, Slot, QThread, Qt, QTimer, QObject
 from PySide6.QtGui import QKeySequence
 
 # Importaciones de nuestros módulos
@@ -17,6 +18,32 @@ from config import ANSI_ESCAPE, PORT, BAUDRATE
 from ui_panels import MeasurementPanel
 from menu_manager import MenuManager
 from state_manager import StateManager
+
+class SequenceManager(QObject):
+    """Gestiona la ejecución de una secuencia de comandos con retardos."""
+    send_command = Signal(str)
+    sequence_finished = Signal(str)
+
+    def __init__(self, delay=500, parent=None):
+        super().__init__(parent)
+        self.command_queue = deque()
+        self.timer = QTimer(self)
+        self.timer.setSingleShot(True)
+        self.timer.timeout.connect(self._send_next_command)
+        self.delay = delay
+
+    def start_sequence(self, commands):
+        self.command_queue = deque(commands)
+        self._send_next_command()
+
+    def _send_next_command(self):
+        if self.command_queue:
+            command = self.command_queue.popleft()
+            self.send_command.emit(command)
+            if self.command_queue: # Si aún quedan comandos, programar el siguiente
+                self.timer.start(self.delay)
+        else:
+            self.sequence_finished.emit("Secuencia de calibración rápida completada.")
 
 class ScreenEmulator:
     """Emulador simple de terminal VT100 para reconstruir la pantalla del TVK6."""
@@ -132,6 +159,7 @@ class MainWindow(QMainWindow):
         self.menu_manager = MenuManager(self.ui, self)
         self.screen_emulator = ScreenEmulator()
         self.state_manager = StateManager(self.menu_manager)
+        self.sequence_manager = SequenceManager(delay=2000, parent=self)
 
         self._connect_signals()
 
@@ -151,6 +179,7 @@ class MainWindow(QMainWindow):
         self.btnReconectar = self.ui.findChild(QPushButton, 'btnReconectar')
         self.btnRetornar = self.ui.findChild(QPushButton, 'btnRetornar')
         self.btn_reset = self.ui.findChild(QPushButton, 'btn_reset')
+        self.btnCalibracionRapida = self.ui.findChild(QPushButton, 'btnCalibracionRapida')
         self.btnLimpiarMonitor = self.ui.findChild(QPushButton, 'btnLimpiarMonitor')
 
     def _connect_signals(self):
@@ -163,8 +192,12 @@ class MainWindow(QMainWindow):
         self.btnReconectar.clicked.connect(self.start_serial_worker)
         self.btnRetornar.clicked.connect(lambda: self.send_command('esc'))
         self.btn_reset.clicked.connect(lambda: self.send_command('reset'))
+        self.btnCalibracionRapida.clicked.connect(self.start_quick_calibration)
         self.btnLimpiarMonitor.clicked.connect(self.clear_monitor)
         self.state_manager.clear_screen_requested.connect(self.clear_monitor) # Conectar la nueva señal
+
+        # Conectar el gestor de secuencias
+        self.sequence_manager.send_command.connect(self.send_command)
         
         # --- INICIO DE LA MODIFICACIÓN: Corrección de doble comando ---
         # Se elimina el atajo global para la tecla Enter (Return).
@@ -243,14 +276,26 @@ class MainWindow(QMainWindow):
     @Slot(str)
     def send_command(self, command=None):
         """Recupera el texto o usa el comando del botón y lo envía al worker."""
+        is_from_input_field = command is None
         if command is None and self.campoComando:
             command = self.campoComando.text().strip()
         
         if not command:
             return
 
-        self.command_to_statemanager.emit(command)
-        # La limpieza de pantalla ahora es gestionada por el StateManager
+        # --- INICIO DE LA MODIFICACIÓN: Log de comandos enviados ---
+        self.monitorSalida.appendPlainText(f"-> CMD: '{command}'")
+        # --- FIN DE LA MODIFICACIÓN ---
+        # --- INICIO DE LA MODIFICACIÓN: Lógica de envío contextual ---
+        # Si el comando viene del campo de texto, es un dato para el dispositivo, no un comando de navegación.
+        # Por lo tanto, solo lo enviamos al worker.
+        if is_from_input_field:
+            self.send_to_worker.emit(command)
+        else: # Si es un comando de un botón o atajo, notificamos a ambos.
+            self.command_to_statemanager.emit(command)
+            self.send_to_worker.emit(command)
+        # --- FIN DE LA MODIFICACIÓN ---
+
         if not self.thread or not self.thread.isRunning() or not self.worker.serial_port or not self.worker.serial_port.is_open:
             if self.monitorSalida:
                 self.monitorSalida.appendPlainText(f"[ERROR LOCAL] No se pudo enviar '{command}': Puerto no conectado.")
@@ -258,10 +303,15 @@ class MainWindow(QMainWindow):
                 self.campoComando.clear()
             return
 
-        self.send_to_worker.emit(command)
-
         if self.campoComando:
              self.campoComando.clear()
+
+    @Slot()
+    def start_quick_calibration(self):
+        """Inicia la secuencia de calibración rápida."""
+        # reset -> 1 -> 1 -> 1 -> 138.9 -> enter -> esc -> esc -> 2 -> 3 -> 1
+        commands = ['reset', '1', '1', '1', '138.9', 'esc', 'esc', '2', '3',"4","enter","enter","enter","-0.2","0.5" ,"enter",'1']
+        self.sequence_manager.start_sequence(commands)
 
     @Slot(object)
     def on_write_result(self, bytes_sent):
@@ -294,18 +344,22 @@ class MainWindow(QMainWindow):
     def keyPressEvent(self, event):
         """Captura eventos de teclado para atajos numéricos."""
         key = event.key()
+        current_state = self.state_manager.get_current_state_name()
+
         # Si se presiona una tecla numérica (0-9) y el campo de texto no tiene el foco
-        if Qt.Key.Key_0 <= key <= Qt.Key.Key_9 and self.campoComando and not self.campoComando.hasFocus():
+        # Y NO estamos en un modo de entrada de datos.
+        if Qt.Key.Key_0 <= key <= Qt.Key.Key_9 and self.campoComando and not self.campoComando.hasFocus() and current_state not in ['CALIBRAR_DATA_ENTRY', 'DATOS_MEDIDOR_MENU']:
             command = str(key - Qt.Key.Key_0)
             self.command_to_statemanager.emit(command)
             # Añadimos esta línea para que el comando también se envíe al dispositivo
             self.send_to_worker.emit(command)
         # --- INICIO DE LA MODIFICACIÓN: Navegación por campos ---
         # Si estamos en modo de entrada de datos de calibración, las flechas y Enter tienen funciones especiales.
-        elif self.state_manager.get_current_state_name() in ['CALIBRAR_DATA_ENTRY', 'DATOS_MEDIDOR_MENU']:
-            if key in [Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Right]:
-                # Enter o Flecha Derecha envían un retorno de carro para pasar al siguiente campo.
-                self.send_command('enter')
+        elif current_state in ['CALIBRAR_DATA_ENTRY', 'DATOS_MEDIDOR_MENU']:
+            # Si se presiona Enter/Return y el foco NO está en el campo de texto,
+            # lo tratamos como un comando de navegación para pasar al siguiente campo.
+            if key in [Qt.Key.Key_Return, Qt.Key.Key_Enter] and not self.campoComando.hasFocus():
+                self.send_command('enter') # Envía un retorno de carro para avanzar
                 event.accept() # Marcamos el evento como manejado
             elif key == Qt.Key.Key_Left:
                 # Flecha Izquierda envía un escape para retroceder.

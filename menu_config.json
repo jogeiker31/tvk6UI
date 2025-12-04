@@ -59,9 +59,8 @@
       }
     },
     "CALIBRAR_DATA_ENTRY": {
-      "title": "Calibración (Editando)"
+      "title": "Calibración (Entrada de Datos)"
     },
-
     "PBA_SERIE_MENU": {
       "title": "PBA Serie",
       "detection_keywords": ["PBA", "SERIE", "COMIENZO"],

@@ -50,6 +50,13 @@ class StateManager(QObject): # Inherit from QObject
         if measurement_panel:
             measurement_panel.update_display(self.parsed_values)
 
+        # --- INICIO DE LA MODIFICACIÓN: Bloquear detección en modos de entrada de datos ---
+        # Si estamos en un estado de entrada de datos, no intentamos detectar un nuevo
+        # estado a partir de la pantalla, ya que esta se redibuja constantemente.
+        # El estado solo cambiará por una acción explícita del usuario (comando 'esc', 'reset', etc.).
+        if self.current_state in ['CALIBRAR_DATA_ENTRY']:
+            return
+
         # Detección de estado/menú
         # Primero, intentamos detectar si la pantalla corresponde a un nuevo estado.
         for state_name, state_data in self.config['states'].items():
@@ -118,5 +125,11 @@ class StateManager(QObject): # Inherit from QObject
         
         self.current_state = new_state
         
-        new_state_config = self.config['states'].get(new_state)
+        # --- INICIO DE LA MODIFICACIÓN: Limpiar botones en modo de entrada de datos ---
+        # Si el nuevo estado es un modo de entrada de datos, no mostramos botones dinámicos.
+        if new_state in ['CALIBRAR_DATA_ENTRY']:
+            new_state_config = self.config['states'].get(new_state, {})
+        else:
+            new_state_config = self.config['states'].get(new_state)
+        # --- FIN DE LA MODIFICACIÓN ---
         self.menu_manager.update_menu_config(new_state_config)

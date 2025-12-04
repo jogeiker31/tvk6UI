@@ -61,9 +61,8 @@ class SerialWorker(QObject):
                 data = self.serial_port.read_all()
                
                 if data:
-                    print(data)
+                    print(f"<== RECV: {data!r}") # Log de bytes recibidos
                     text = data.decode('latin-1') # Usar latin-1 para preservar todos los bytes
-                    print(text)
                     if text:
                         self.data_received.emit(text)
             except Exception as e:
@@ -103,6 +102,9 @@ class SerialWorker(QObject):
             else:
                 bytes_to_send = (command + '\r').encode('ascii')
 
+            # --- INICIO DE LA MODIFICACIÓN: Log de comandos enviados a la consola ---
+            print(f"==> SENT: {bytes_to_send!r}")
+            # --- FIN DE LA MODIFICACIÓN ---
             self.serial_port.write(bytes_to_send)
             self.write_result.emit(bytes_to_send)
         except Exception as e:

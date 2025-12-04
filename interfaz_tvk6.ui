@@ -91,6 +91,7 @@
            </property>
           </spacer>
          </item>
+         <item><widget class="QPushButton" name="btnCalibracionRapida"><property name="text"><string>Calibración Rápida</string></property></widget></item>
          <item><widget class="QPushButton" name="btnReconectar"><property name="text"><string>Reconectar</string></property></widget></item>
          <item><widget class="QPushButton" name="btnRetornar"><property name="text"><string>Retorno (Enter)</string></property></widget></item>
          <item><widget class="QPushButton" name="btn_reset"><property name="text"><string>RESET (Ctrl+C)</string></property></widget></item>
