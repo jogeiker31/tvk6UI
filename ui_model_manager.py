@@ -36,7 +36,7 @@ class ModelManagerDialog(QDialog):
         table_layout = QVBoxLayout()
         self.table = QTableWidget()
         self.table.setColumnCount(6)
-        self.table.setHorizontalHeaderLabels(["ID", "Nombre (Modelo)", "Constante (X)", "K", "ds", "di"])
+        self.table.setHorizontalHeaderLabels(["ID", "Nombre (Modelo)", "Constante (X)", "K", "di", "ds"])
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.setColumnHidden(0, True) # Ocultar columna ID
@@ -64,8 +64,8 @@ class ModelManagerDialog(QDialog):
         form_layout.addRow("Nombre:", self.name_input)
         form_layout.addRow("Constante (X):", self.constante_input)
         form_layout.addRow("K:", self.k_input)
-        form_layout.addRow("ds:", self.ds_input)
-        form_layout.addRow("di:", self.di_input)
+        form_layout.addRow("di:", self.ds_input)
+        form_layout.addRow("ds:", self.di_input)
         form_group.setLayout(form_layout)
 
         # Botones

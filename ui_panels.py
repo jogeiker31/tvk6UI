@@ -19,6 +19,9 @@ class MeasurementPanel:
         self.valorX = parent_ui.findChild(QLabel, 'valorX')
         self.valorK = parent_ui.findChild(QLabel, 'valorK')
         self.valorU1 = parent_ui.findChild(QLabel, 'valorU1')
+        self.valorI1 = parent_ui.findChild(QLabel, 'valorI1')
+        self.valorDi = parent_ui.findChild(QLabel, 'valorDi')
+        self.valorDs = parent_ui.findChild(QLabel, 'valorDs')
 
     def update_display(self, parsed_values):
         """
@@ -33,7 +36,13 @@ class MeasurementPanel:
         valor_x = parsed_values.get('X', '---')
         valor_k = parsed_values.get('K', '---')
         valor_u1 = parsed_values.get('U1', '---')
+        valor_i1 = parsed_values.get('I1', '---')
+        valor_di = parsed_values.get('di', '---')
+        valor_ds = parsed_values.get('ds', '---')
 
         self.valorX.setText(f"{valor_x}")
         self.valorK.setText(f"{valor_k}")
         self.valorU1.setText(f"{valor_u1}")
+        self.valorI1.setText(f"{valor_i1}")
+        self.valorDi.setText(f"{valor_di}")
+        self.valorDs.setText(f"{valor_ds}")

@@ -18,7 +18,7 @@ class StateManager(QObject): # Inherit from QObject
         self.current_state = 'INIT'
         self._load_config(config_file)
         self.history = [] # Pila para el historial de navegación
-        self.parsed_values = {'X': '---', 'K': '---', 'U1': '---'}
+        self.parsed_values = {'X': '---', 'K': '---', 'U1': '---', 'I1': '---', 'di': '---', 'ds': '---'}
         self.menu_manager.update_menu_config(None) # Iniciar sin menú
 
     def _load_config(self, config_file):
@@ -40,6 +40,30 @@ class StateManager(QObject): # Inherit from QObject
         k_match = re.search(r'K\s*=\s*([0-9.]+)', screen_text)
         u1_match = re.search(r'U1\s*=\s*([0-9.]+)', screen_text)
 
+        # --- INICIO DE LA MODIFICACIÓN: Parseo robusto de di y ds ---
+        # Buscamos la línea que contiene "di" y "ds" y la línea siguiente que contiene los valores.
+        # Esto es más robusto que buscar el texto y el número juntos.
+        # La regex busca la línea de cabecera y luego, en la línea de datos, captura los valores
+        # que están aproximadamente bajo 'di' y 'ds'. Solo lo hacemos si aún no los tenemos.
+        if self.current_state == 'CALIBRAR_MENU':
+            di_ds_match = re.search(r'di\s+ds.*\n.*?\s+(-?[0-9.]+)\s+(-?[0-9.]+)', screen_text, re.DOTALL)
+            if di_ds_match:
+                di_val, ds_val = di_ds_match.groups()
+                self.parsed_values['di'] = di_val
+                self.parsed_values['ds'] = ds_val
+
+        # El valor de I1 [A] se encuentra al final de la línea que empieza con "1 ".
+        # La salida del TVK6 es posicional, por lo que esta es una forma más robusta
+        # de encontrar el valor, incluso si los espacios varían.
+        # La regex busca una línea que empiece con "1" (y espacios), y captura el último
+        # número flotante/entero en esa línea.
+        # Buscamos la línea que contiene los valores de 'di' y 'ds' (-100.0, 100.0)
+        # y capturamos el último número flotante en esa línea, que corresponde a I1.
+        calib_data_line_match = re.search(r'^\s*.*-100\.0\s+100\.0\s+.*?\s+([0-9.-]+)\s*$', screen_text, re.MULTILINE)
+        if calib_data_line_match:
+            # El último grupo capturado en esa línea es el valor de I1
+            self.parsed_values['I1'] = calib_data_line_match.group(1).strip()
+
         if x_match:
             self.parsed_values['X'] = x_match.group(1)
         if k_match:
@@ -54,7 +78,20 @@ class StateManager(QObject): # Inherit from QObject
         # Si estamos en un estado de entrada de datos, no intentamos detectar un nuevo
         # estado a partir de la pantalla, ya que esta se redibuja constantemente.
         # El estado solo cambiará por una acción explícita del usuario (comando 'esc', 'reset', etc.).
-        if self.current_state in ['CALIBRAR_DATA_ENTRY']:
+        if self.current_state in ['CALIBRAR_DATA_ENTRY', 'CALIBRAR_TABLE_VIEW']:
+            # --- INICIO DE LA MODIFICACIÓN: Salida de CALIBRAR_DATA_ENTRY ---
+            # Excepción: si estamos en CALIBRAR_DATA_ENTRY y recibimos la pantalla del menú de calibración,
+            # forzamos la transición de vuelta. Esto es crucial para la secuencia de automatización.
+            if self.current_state == 'CALIBRAR_DATA_ENTRY' and all(keyword in screen_text for keyword in self.config['states']['CALIBRAR_MENU']['detection_keywords']):
+                self.set_state('CALIBRAR_MENU')
+                return # Salimos después de hacer la transición
+            # --- FIN DE LA MODIFICACIÓN ---
+            # --- INICIO DE LA MODIFICACIÓN: Forzar redibujado si es necesario ---
+            # Si estamos en la vista de tabla, nos aseguramos de que el menú se mantenga
+            # correctamente configurado, incluso si no hay cambio de estado.
+            current_config = self.config['states'].get(self.current_state, {})
+            self.menu_manager.update_menu_config(current_config)
+            # --- FIN DE LA MODIFICACIÓN ---
             return
 
         # Detección de estado/menú
@@ -125,6 +162,11 @@ class StateManager(QObject): # Inherit from QObject
         
         self.current_state = new_state
         
+        # Si estamos saliendo de la vista de tabla, reseteamos los valores de di y ds
+        # para que se vuelvan a leer la próxima vez que entremos.
+        if old_state == 'CALIBRAR_TABLE_VIEW' and new_state != 'CALIBRAR_TABLE_VIEW':
+            self.parsed_values['di'] = '---'
+            self.parsed_values['ds'] = '---'
         # --- INICIO DE LA MODIFICACIÓN: Limpiar botones en modo de entrada de datos ---
         # Si el nuevo estado es un modo de entrada de datos, no mostramos botones dinámicos.
         if new_state in ['CALIBRAR_DATA_ENTRY']:

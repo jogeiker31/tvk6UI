@@ -81,18 +81,22 @@ class MenuManager:
             self.dynamic_menu_group_box.setTitle("Comandos Rápidos")
             self.graphic_view_title.setText("TVK6")
 
-    def parse_and_draw(self, screen_text):
+    def parse_and_draw(self, screen_text, force_config_name=None):
         """Parsea el texto de la pantalla usando la configuración actual y dibuja los botones."""
-        if not self.current_config:
+        config_to_use = self.current_config
+
+        # Si se fuerza un nombre de configuración, lo usamos en su lugar.
+        if force_config_name:
+            config_to_use = self.main_window.state_manager.config['states'].get(force_config_name)
+
+        if not config_to_use:
             self.clear_menu() # Limpiamos si no hay menú que mostrar
             return
 
         menu_matches = None
 
-        # Usar la lista de botones fijos si existe en la configuración.
-        if 'buttons' in self.current_config:
-            # Convertimos la lista de dicts a una tupla de tuplas para que coincida con el formato de regex.
-            menu_matches = tuple((btn['number'], btn['text']) for btn in self.current_config['buttons'])
+        if 'buttons' in config_to_use:
+            menu_matches = tuple((btn['number'], btn['text']) for btn in config_to_use['buttons'])
 
         # Si encontramos botones y son diferentes a los que ya mostramos, los redibujamos.
         if menu_matches and menu_matches != self.current_menu_options:

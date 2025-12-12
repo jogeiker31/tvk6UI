@@ -67,6 +67,9 @@
       <set>Qt::AlignCenter</set>
      </property>
      <layout class="QHBoxLayout" name="measurementHBoxLayout">
+      <property name="spacing">
+       <number>20</number>
+      </property>
       <item>
        <spacer name="measurementLeftSpacer">
         <property name="orientation">
@@ -171,6 +174,108 @@
           </property>
           <property name="styleSheet">
            <string notr="true">color: #ffc107;</string>
+          </property>
+          <property name="text">
+           <string>---</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <!-- Valor I1 -->
+      <item>
+       <layout class="QVBoxLayout" name="valorI1VBoxLayout">
+        <item>
+         <widget class="QLabel" name="labelI1">
+          <property name="text">
+           <string>I1 [A]:</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="valorI1">
+          <property name="font">
+           <font>
+            <pointsize>18</pointsize>
+            <weight>Bold</weight>
+           </font>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">color: #dc3545;</string>
+          </property>
+          <property name="text">
+           <string>---</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <!-- Valor di -->
+      <item>
+       <layout class="QVBoxLayout" name="valorDiVBoxLayout">
+        <item>
+         <widget class="QLabel" name="labelDi">
+          <property name="text">
+           <string>di:</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="valorDi">
+          <property name="font">
+           <font>
+            <pointsize>18</pointsize>
+            <weight>Bold</weight>
+           </font>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">color: #17a2b8;</string>
+          </property>
+          <property name="text">
+           <string>---</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <!-- Valor ds -->
+      <item>
+       <layout class="QVBoxLayout" name="valorDsVBoxLayout">
+        <item>
+         <widget class="QLabel" name="labelDs">
+          <property name="text">
+           <string>ds:</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="valorDs">
+          <property name="font">
+           <font>
+            <pointsize>18</pointsize>
+            <weight>Bold</weight>
+           </font>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">color: #6f42c1;</string>
           </property>
           <property name="text">
            <string>---</string>
@@ -377,11 +482,6 @@
             </widget>
            </item>
            <item>
-            <layout class="QHBoxLayout" name="graphicsHorizontalButtonLayout">
-             <!-- Este layout se llenará dinámicamente con botones -->
-            </layout>
-           </item>
-           <item>
             <widget class="QFrame" name="customGraphicFrame">
              <property name="frameShape">
               <enum>QFrame::StyledPanel</enum>
@@ -402,6 +502,12 @@
               </item>
              </layout>
             </widget>
+           </item>
+           <!-- Layout para los botones, ahora debajo del área de widgets -->
+           <item>
+            <layout class="QHBoxLayout" name="graphicsHorizontalButtonLayout">
+             <!-- Este layout se llenará dinámicamente con botones -->
+            </layout>
            </item>
           </layout>
          </widget>

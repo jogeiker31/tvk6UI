@@ -22,6 +22,7 @@ from menu_manager import MenuManager
 from state_manager import StateManager
 from database import DatabaseManager
 from ui_model_manager import ModelManagerDialog
+from calibration_view import CalibrationTableView
 
 class SequenceManager(QObject):
     """Gestiona la ejecución de una secuencia de comandos con retardos."""
@@ -153,7 +154,7 @@ class MainWindow(QMainWindow):
     def __init__(self, ui_file):
         super().__init__()
 
-        self.parsed_values = {'X': '---', 'K': '---', 'U1': '---'}
+        self.parsed_values = {'X': '---', 'K': '---', 'U1': '---', 'I1': '---'}
 
         loader = QUiLoader()
         self.ui = loader.load(ui_file, self)
@@ -203,6 +204,14 @@ class MainWindow(QMainWindow):
         self.viewSwitcher = self.ui.findChild(QCheckBox, 'viewSwitcher')
         self.viewStackedWidget = self.ui.findChild(QStackedWidget, 'viewStackedWidget')
         self.graphicViewTitle = self.ui.findChild(QLabel, 'graphicViewTitle')
+        # --- INICIO DE LA MODIFICACIÓN: Widget para la vista de calibración ---
+        # Referencia al label genérico para poder ocultarlo
+        self.customGraphicLabel = self.ui.findChild(QLabel, 'label')
+        self.customGraphicLayout = self.ui.findChild(QVBoxLayout, 'customGraphicLayout')
+        self.calibration_table_view = CalibrationTableView(rows=2, cols=10)
+        self.customGraphicLayout.insertWidget(0, self.calibration_table_view) # Añadirlo al layout
+        self.calibration_table_view.setVisible(False) # Oculto por defecto
+        # --- FIN DE LA MODIFICACIÓN ---
 
     def _connect_signals(self):
         """Conecta todas las señales de la UI a sus respectivos slots."""
@@ -456,6 +465,27 @@ class MainWindow(QMainWindow):
         # 2. Detectar cambios de estado (ej. INIT -> MAIN_MENU).
         # 3. Dibujar los botones del menú actual.
         self.state_manager.process_screen_text(screen_text, self.measurement_panel)
+        # --- INICIO DE LA MODIFICACIÓN: Actualizar vista gráfica de calibración ---
+        current_state = self.state_manager.get_current_state_name()
+        if current_state == 'CALIBRAR_TABLE_VIEW':
+            self.calibration_table_view.setVisible(True)
+            self.customGraphicLabel.setVisible(False) # Ocultar texto genérico
+            # Obtener di y ds del state_manager
+            di = self.state_manager.parsed_values.get('di', '---')
+            ds = self.state_manager.parsed_values.get('ds', '---')
+            self.calibration_table_view.update_values(screen_text, di, ds)
+            self.graphicViewTitle.setText("Tabla de Calibración")
+            # --- INICIO DE LA MODIFICACIÓN: Dibujar botones del menú de calibración ---
+            # Forzamos que se dibujen los botones del menú de calibración debajo de la tabla.
+            self.menu_manager.parse_and_draw(screen_text, force_config_name='CALIBRAR_MENU')
+            # --- FIN DE LA MODIFICACIÓN ---
+        else:
+            # Si no estamos en esa vista, nos aseguramos de que esté oculta
+            self.calibration_table_view.setVisible(False)
+            self.customGraphicLabel.setVisible(True) # Mostrar texto genérico
+            # Restaurar el título si es necesario (esto podría necesitar más lógica)
+            self.graphicViewTitle.setText(self.state_manager.get_current_state_name())
+        # --- FIN DE LA MODIFICACIÓN ---
 
     @Slot(str)
     def display_error(self, message):

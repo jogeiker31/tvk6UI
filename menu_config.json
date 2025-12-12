@@ -55,11 +55,18 @@
         { "number": "4", "text": "DATOS" }
       ],
       "transitions": {
+        "1": { "target": "CALIBRAR_TABLE_VIEW", "clear_screen": false },
         "4": { "target": "CALIBRAR_DATA_ENTRY", "clear_screen": false }
       }
     },
+    "CALIBRAR_TABLE_VIEW": {
+      "title": "Tabla de Calibración",
+      "detection_keywords": ["lqqqqqqwqqqqqq", "mqqqqqqvqqqqqq"],
+      "buttons": []
+    },
     "CALIBRAR_DATA_ENTRY": {
-      "title": "Calibración (Entrada de Datos)"
+      "title": "Calibración (Entrada de Datos)",
+      "buttons": []
     },
     "PBA_SERIE_MENU": {
       "title": "PBA Serie",
