@@ -35,41 +35,37 @@ class StateManager(QObject): # Inherit from QObject
 
     def process_screen_text(self, screen_text, measurement_panel=None):
         """Analiza el texto de la pantalla para detectar cambios de estado automáticos."""
-        # Parseo de datos de medición
-        x_match = re.search(r'X\s*=\s*([0-9.]+)', screen_text)
-        k_match = re.search(r'K\s*=\s*([0-9.]+)', screen_text)
-        u1_match = re.search(r'U1\s*=\s*([0-9.]+)', screen_text)
+        # Parseo de X, K, U1
+        # Estos valores pueden aparecer en DATOS_MEDIDOR_MENU, CALIBRAR_MENU y CALIBRAR_TABLE_VIEW
+        if self.current_state in ['DATOS_MEDIDOR_MENU', 'CALIBRAR_MENU', 'CALIBRAR_TABLE_VIEW']:
+            x_match = re.search(r'X\s*=\s*([0-9.]+)', screen_text)
+            k_match = re.search(r'K\s*=\s*([0-9.]+)', screen_text)
+            u1_match = re.search(r'U1\s*=\s*([0-9.]+)', screen_text)
 
-        # --- INICIO DE LA MODIFICACIÓN: Parseo robusto de di y ds ---
-        # Buscamos la línea que contiene "di" y "ds" y la línea siguiente que contiene los valores.
-        # Esto es más robusto que buscar el texto y el número juntos.
-        # La regex busca la línea de cabecera y luego, en la línea de datos, captura los valores
-        # que están aproximadamente bajo 'di' y 'ds'. Solo lo hacemos si aún no los tenemos.
-        if self.current_state == 'CALIBRAR_MENU':
-            di_ds_match = re.search(r'di\s+ds.*\n.*?\s+(-?[0-9.]+)\s+(-?[0-9.]+)', screen_text, re.DOTALL)
-            if di_ds_match:
-                di_val, ds_val = di_ds_match.groups()
-                self.parsed_values['di'] = di_val
-                self.parsed_values['ds'] = ds_val
-
-        # El valor de I1 [A] se encuentra al final de la línea que empieza con "1 ".
-        # La salida del TVK6 es posicional, por lo que esta es una forma más robusta
-        # de encontrar el valor, incluso si los espacios varían.
-        # La regex busca una línea que empiece con "1" (y espacios), y captura el último
-        # número flotante/entero en esa línea.
-        # Buscamos la línea que contiene los valores de 'di' y 'ds' (-100.0, 100.0)
-        # y capturamos el último número flotante en esa línea, que corresponde a I1.
-        calib_data_line_match = re.search(r'^\s*.*-100\.0\s+100\.0\s+.*?\s+([0-9.-]+)\s*$', screen_text, re.MULTILINE)
-        if calib_data_line_match:
-            # El último grupo capturado en esa línea es el valor de I1
-            self.parsed_values['I1'] = calib_data_line_match.group(1).strip()
-
-        if x_match:
-            self.parsed_values['X'] = x_match.group(1)
-        if k_match:
-            self.parsed_values['K'] = k_match.group(1)
-        if u1_match:
-            self.parsed_values['U1'] = u1_match.group(1)
+            if x_match: self.parsed_values['X'] = x_match.group(1)
+            if k_match: self.parsed_values['K'] = k_match.group(1)
+            if u1_match: self.parsed_values['U1'] = u1_match.group(1)
+        
+        # Parseo de di, ds e I1
+        # Estos valores aparecen en CALIBRAR_MENU y CALIBRAR_TABLE_VIEW
+        if self.current_state in ['CALIBRAR_MENU', 'CALIBRAR_TABLE_VIEW']:
+            screen_lines = screen_text.split('\n')
+            if len(screen_lines) > 5: # Verificar si la línea 6 existe (índice 5)
+                line_6 = screen_lines[5]
+                # Parseo posicional para di, ds, e I1 en la línea 6
+                # di está en las columnas 37-45
+                if len(line_6) > 36:
+                    di_val = line_6[36:45].strip()
+                    if di_val: self.parsed_values['di'] = di_val
+                # ds está en las columnas 46-54
+                if len(line_6) > 45:
+                    ds_val = line_6[45:54].strip()
+                    if ds_val: self.parsed_values['ds'] = ds_val
+                # I1 [A] está en las columnas 73-80
+                if len(line_6) > 72: # Verificar si la columna 73 existe (índice 72)
+                    i1_val = line_6[72:80].strip()
+                    if i1_val:
+                        self.parsed_values['I1'] = i1_val
 
         if measurement_panel:
             measurement_panel.update_display(self.parsed_values)
@@ -155,16 +151,18 @@ class StateManager(QObject): # Inherit from QObject
         if self.current_state == new_state:
             return # No hacer nada si el estado ya es el actual
 
+        old_state = self.current_state # Capturar old_state antes de actualizar self.current_state
+
         if not from_history:
             # Solo añadimos al historial si es una navegación hacia adelante
-            self.history.append(self.current_state)
-            print(f"Transición de estado: {self.current_state} -> {new_state}")
+            self.history.append(old_state) # Usar old_state para el historial
+            print(f"Transición de estado: {old_state} -> {new_state}") # Usar old_state para el log
         
         self.current_state = new_state
         
         # Si estamos saliendo de la vista de tabla, reseteamos los valores de di y ds
         # para que se vuelvan a leer la próxima vez que entremos.
-        if old_state == 'CALIBRAR_TABLE_VIEW' and new_state != 'CALIBRAR_TABLE_VIEW':
+        if old_state == 'CALIBRAR_TABLE_VIEW' and self.current_state != 'CALIBRAR_TABLE_VIEW': # Usar self.current_state aquí
             self.parsed_values['di'] = '---'
             self.parsed_values['ds'] = '---'
         # --- INICIO DE LA MODIFICACIÓN: Limpiar botones en modo de entrada de datos ---

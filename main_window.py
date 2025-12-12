@@ -154,7 +154,7 @@ class MainWindow(QMainWindow):
     def __init__(self, ui_file):
         super().__init__()
 
-        self.parsed_values = {'X': '---', 'K': '---', 'U1': '---', 'I1': '---'}
+        self.parsed_values = {'X': '---', 'K': '---', 'U1': '---', 'I1': '---', 'di': '---', 'ds': '---'}
 
         loader = QUiLoader()
         self.ui = loader.load(ui_file, self)
@@ -172,6 +172,12 @@ class MainWindow(QMainWindow):
         self.db_manager = DatabaseManager()
 
         self._connect_signals()
+
+        # --- INICIO DE LA MODIFICACIÓN: Temporizador para procesar snapshots ---
+        self.processing_timer = QTimer(self)
+        self.processing_timer.setInterval(2000)  # ms de espera antes de procesar (2 segundos)
+        self.processing_timer.setSingleShot(True)
+        self.processing_timer.timeout.connect(self._process_screen_snapshot)
         
         # Configurar animaciones y efectos visuales
         self._setup_visual_effects()
@@ -453,11 +459,34 @@ class MainWindow(QMainWindow):
     @Slot(str)
     def display_data(self, raw_data):
         """Muestra la data RAW y realiza el parsing de datos Medidos."""
-        # No mostramos el raw_data directamente para evitar basura visual.
-        # En su lugar, lo procesamos con el emulador de pantalla.
+        # 1. Acumulamos los datos en el emulador de pantalla.
         self.screen_emulator.process_data(raw_data)
-        screen_text = self.screen_emulator.get_screen_text() # Obtener el texto reconstruido de la pantalla
-        
+        # 2. Reiniciamos el temporizador. La lógica de procesamiento solo se ejecutará
+        #    cuando los datos dejen de llegar por un breve momento.
+        self.processing_timer.start()
+
+    def _process_screen_snapshot(self):
+        """
+        Se ejecuta cuando el temporizador termina, procesando la pantalla "estable".
+        Este es el núcleo de la nueva lógica de snapshots.
+        """
+        screen_text = self.screen_emulator.get_screen_text()
+
+        # Actualizar la consola de texto con la pantalla completa y estable
+        # --- INICIO DE LA MODIFICACIÓN: Minimizar líneas en blanco ---
+        minimized_screen_text_lines = []
+        last_line_was_blank = False
+        for line in screen_text.splitlines():
+            if line.strip() == "":
+                if not last_line_was_blank:
+                    minimized_screen_text_lines.append(line)
+                last_line_was_blank = True
+            else:
+                minimized_screen_text_lines.append(line)
+                last_line_was_blank = False
+        minimized_screen_text = "\n".join(minimized_screen_text_lines)
+        print("\n--- SNAPSHOT DE PANTALLA (2s) ---\n" + minimized_screen_text + "\n-----------------------------------\n")
+        # --- FIN DE LA MODIFICACIÓN ---
         self.monitorSalida.setPlainText(screen_text) # Mostrar el texto emulado en la consola
         
         # El StateManager se encarga de todo:
@@ -484,7 +513,7 @@ class MainWindow(QMainWindow):
             self.calibration_table_view.setVisible(False)
             self.customGraphicLabel.setVisible(True) # Mostrar texto genérico
             # Restaurar el título si es necesario (esto podría necesitar más lógica)
-            self.graphicViewTitle.setText(self.state_manager.get_current_state_name())
+            # El título es establecido por MenuManager.update_menu_config
         # --- FIN DE LA MODIFICACIÓN ---
 
     @Slot(str)

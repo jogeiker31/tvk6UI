@@ -61,7 +61,7 @@ class SerialWorker(QObject):
                 data = self.serial_port.read_all()
                
                 if data:
-                    print(f"<== RECV: {data!r}") # Log de bytes recibidos
+                    # print(f"<== RECV: {data!r}") # Log de bytes recibidos
                     text = data.decode('latin-1') # Usar latin-1 para preservar todos los bytes
                     if text:
                         self.data_received.emit(text)
@@ -107,7 +107,7 @@ class SerialWorker(QObject):
                     # Para datos de varios caracteres, enviamos de forma pausada para no saturar el buffer del TVK6.
                     for char in command:
                         self.serial_port.write(char.encode('ascii'))
-                        print(f"==> SENT (char): {char.encode('ascii')!r}")
+                        # print(f"==> SENT (char): {char.encode('ascii')!r}")
                         time.sleep(0.1) # Pausa de 100ms entre caracteres
                     bytes_to_send = b'\r' # Enviamos el RETURN final por separado
 
@@ -115,7 +115,7 @@ class SerialWorker(QObject):
             print(f"==> SENT: {bytes_to_send!r}")
             # --- FIN DE LA MODIFICACIÓN ---
             self.serial_port.write(bytes_to_send)
-            self.write_result.emit(bytes_to_send)
+            self.write_result.emit(bytes_to_send) # Emitir el resultado de la escritura
         except Exception as e:
             self.error.emit(f"Error al escribir en serial: {e}")
             self.connection_status.emit(False, f"ERROR DE ESCRITURA: {e}")

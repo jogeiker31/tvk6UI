@@ -3,7 +3,7 @@
     "INIT": {},
     "MAIN_MENU": {
       "title": "Menú Principal",
-      "detection_keywords": ["LANDIS", "GYR"],
+      "detection_keywords": ["LANDIS & GYR", "ENTRADAS", "ESTADIST."],
       "buttons": [
         { "number": "1", "text": "ENTRADAS" },
         { "number": "2", "text": "CALIBRAR" },
@@ -21,7 +21,7 @@
     },
     "ENTRADAS_MENU": {
       "title": "Entradas",
-      "detection_keywords": ["DAT.MEDID.", "DAT.SYST."],
+      "detection_keywords": ["ENTRADAS", "DAT.MEDID.", "DAT.SYST."],
       "buttons": [
         { "number": "1", "text": "DAT.MEDID." },
         { "number": "2", "text": "DAT.SYST." },
