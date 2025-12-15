@@ -6,7 +6,7 @@ las interacciones y la orquestación del SerialWorker.
 """
 import re
 from collections import deque
-from PySide6.QtWidgets import (QMainWindow, QLineEdit, QPlainTextEdit, QLabel, QPushButton, QVBoxLayout, QGroupBox, QMenu, QComboBox, QStackedWidget, QCheckBox, QFrame,
+from PySide6.QtWidgets import (QMainWindow, QLineEdit, QPlainTextEdit, QLabel, QPushButton, QVBoxLayout, QGroupBox, QMenu, QComboBox, QStackedWidget, QCheckBox, QFrame, QMessageBox,
                                QGraphicsDropShadowEffect)
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import Signal, Slot, QThread, Qt, QTimer, QObject
@@ -25,6 +25,8 @@ from calibration_view import CalibrationTableView
 from ui_input_dialog import InputDialog
 from sequence_manager import SequenceManager
 from screen_emulator import ScreenEmulator
+from settings_dialog import SettingsDialog
+from themes import DARK_THEME, LIGHT_THEME
 
 class MainWindow(QMainWindow):
     """Ventana principal que carga la UI y conecta la lógica."""
@@ -41,6 +43,7 @@ class MainWindow(QMainWindow):
         self.ui = loader.load(ui_file, self)
         self.setCentralWidget(self.ui)
 
+        self.current_theme = 'dark' # Tema por defecto
         self._find_widgets()
         # Crear instancias de nuestros gestores de paneles
         self.measurement_panel = MeasurementPanel(self.ui)
@@ -70,6 +73,9 @@ class MainWindow(QMainWindow):
         self.worker = None
         self.start_serial_worker()
         
+        # Aplicar el tema inicial
+        self._apply_theme(self.current_theme)
+
         self.setWindowTitle("TVK6 Serial Console - Python 3.11 / PySide6")
 
     def _find_widgets(self):
@@ -84,6 +90,7 @@ class MainWindow(QMainWindow):
         self.btnReconectar = self.ui.findChild(QPushButton, 'btnReconectar')
         self.btnRetornar = self.ui.findChild(QPushButton, 'btnRetornar')
         self.btn_reset = self.ui.findChild(QPushButton, 'btn_reset')
+        self.btnConfiguracion = self.ui.findChild(QPushButton, 'btnConfiguracion')
         self.btnLimpiarMonitor = self.ui.findChild(QPushButton, 'btnLimpiarMonitor')
         self.btnGestionarModelos = self.ui.findChild(QPushButton, 'btnGestionarModelos')
 
@@ -129,6 +136,7 @@ class MainWindow(QMainWindow):
         self.btnRetornar.clicked.connect(lambda: self.send_command('esc'))
         self.btn_reset.clicked.connect(lambda: self.send_command('reset'))
         self.btnLimpiarMonitor.clicked.connect(self.clear_monitor)
+        self.btnConfiguracion.clicked.connect(self._open_settings_dialog)
         self.btnGestionarModelos.clicked.connect(self.open_model_manager)
         self.state_manager.clear_screen_requested.connect(self.clear_monitor) # Conectar la nueva señal
 
@@ -143,7 +151,24 @@ class MainWindow(QMainWindow):
         # Se elimina el atajo global para la tecla Enter (Return).
         # El envío al presionar Enter en el campo de texto ya se maneja con la señal `returnPressed`.
         # Mantener este atajo causaba que se enviara el comando del campo Y el comando 'esc' del botón.
-        self.btn_reset.setShortcut(QKeySequence("Ctrl+R")) # Ctrl+C es para copiar
+        self.btn_reset.setShortcut(QKeySequence("Ctrl+R")) # Ctrl+R para reset
+
+    @Slot()
+    def _open_settings_dialog(self):
+        """Abre el diálogo de configuración para el cambio de tema."""
+        dialog = SettingsDialog(current_theme=self.current_theme, parent=self)
+        dialog.theme_changed.connect(self._apply_theme)
+        dialog.exec()
+
+    @Slot(str)
+    def _apply_theme(self, theme_name):
+        """Aplica la hoja de estilos correspondiente al tema seleccionado."""
+        self.current_theme = theme_name
+        if theme_name == 'dark':
+            self.ui.setStyleSheet(DARK_THEME)
+        else:
+            self.ui.setStyleSheet(LIGHT_THEME)
+        # Podríamos necesitar reaplicar estilos específicos si se pierden
 
     def open_model_manager(self):
         """
@@ -176,12 +201,12 @@ class MainWindow(QMainWindow):
         return cleaned_text.replace('\x0e', '').replace('\x0f', '')
 
     @Slot(bool)
-    def switch_view(self, is_graphic_mode):
+    def switch_view(self, is_console_mode):
         """Cambia entre la vista de consola y la vista gráfica."""
-        if is_graphic_mode:
-            self.viewStackedWidget.setCurrentIndex(1) # Ir a la página de gráficos
-        else:
+        if is_console_mode:
             self.viewStackedWidget.setCurrentIndex(0) # Ir a la página de consola
+        else:
+            self.viewStackedWidget.setCurrentIndex(1) # Ir a la página de gráficos
 
     @Slot()
     def refresh_com_ports(self):

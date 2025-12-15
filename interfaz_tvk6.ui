@@ -330,12 +330,33 @@
           </widget>
          </item>
          <item>
+          <widget class="QPushButton" name="btnConfiguracion">
+           <property name="minimumSize">
+            <size>
+             <width>120</width>
+             <height>40</height>
+            </size>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>10</pointsize>
+            </font>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">background-color: #6c757d; color: white; border-radius: 5px;</string>
+           </property>
+           <property name="text">
+            <string>Configuración</string>
+           </property>
+          </widget>
+         </item>
+         <item>
           <widget class="QCheckBox" name="viewSwitcher">
            <property name="toolTip">
             <string>Cambiar entre vista de Consola y vista Gráfica</string>
            </property>
            <property name="text">
-            <string>Modo Gráfico</string>
+            <string>Modo Consola</string>
            </property>
           </widget>
          </item>
@@ -381,6 +402,9 @@
        </item>
        <item>
         <widget class="QStackedWidget" name="viewStackedWidget">
+         <property name="currentIndex">
+          <number>1</number>
+         </property>
          <widget class="QWidget" name="pageConsole">
           <layout class="QVBoxLayout" name="consoleVBoxLayout">
            <property name="leftMargin">
