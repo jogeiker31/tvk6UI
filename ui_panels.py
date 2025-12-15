@@ -18,6 +18,9 @@ class MeasurementPanel:
         """
         self.valorX = parent_ui.findChild(QLabel, 'valorX')
         self.valorK = parent_ui.findChild(QLabel, 'valorK')
+        # M y T ya no están en este panel, se han movido a una cabecera específica.
+        # self.valorM = parent_ui.findChild(QLabel, 'valorM')
+        # self.valorT = parent_ui.findChild(QLabel, 'valorT')
         self.valorU1 = parent_ui.findChild(QLabel, 'valorU1')
         self.valorI1 = parent_ui.findChild(QLabel, 'valorI1')
         self.valorDi = parent_ui.findChild(QLabel, 'valorDi')

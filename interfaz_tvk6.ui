@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>950</width>
-    <height>650</height>
+    <height>652</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -35,7 +35,6 @@
    <property name="bottomMargin">
     <number>10</number>
    </property>
-   <!-- 1. ETIQUETA DE ESTADO SUPERIOR -->
    <item>
     <widget class="QLabel" name="etiquetaEstado">
      <property name="styleSheet">
@@ -53,18 +52,17 @@
       <string>Inicializando...</string>
      </property>
      <property name="alignment">
-      <set>Qt::AlignCenter</set>
+      <set>Qt::AlignmentFlag::AlignCenter</set>
      </property>
     </widget>
    </item>
-   <!-- NUEVO PANEL DE MEDICIONES -->
    <item>
     <widget class="QGroupBox" name="groupBoxDatos">
      <property name="title">
       <string>Valores de Medición</string>
      </property>
      <property name="alignment">
-      <set>Qt::AlignCenter</set>
+      <set>Qt::AlignmentFlag::AlignCenter</set>
      </property>
      <layout class="QHBoxLayout" name="measurementHBoxLayout">
       <property name="spacing">
@@ -73,7 +71,7 @@
       <item>
        <spacer name="measurementLeftSpacer">
         <property name="orientation">
-         <enum>Qt::Horizontal</enum>
+         <enum>Qt::Orientation::Horizontal</enum>
         </property>
         <property name="sizeHint" stdset="0">
          <size>
@@ -83,7 +81,6 @@
         </property>
        </spacer>
       </item>
-      <!-- Valor X -->
       <item>
        <layout class="QVBoxLayout" name="valorXVBoxLayout">
         <item>
@@ -92,7 +89,7 @@
            <string>X [r/kWh]:</string>
           </property>
           <property name="alignment">
-           <set>Qt::AlignCenter</set>
+           <set>Qt::AlignmentFlag::AlignCenter</set>
           </property>
          </widget>
         </item>
@@ -101,7 +98,6 @@
           <property name="font">
            <font>
             <pointsize>18</pointsize>
-            <weight>Bold</weight>
            </font>
           </property>
           <property name="styleSheet">
@@ -111,13 +107,12 @@
            <string>---</string>
           </property>
           <property name="alignment">
-           <set>Qt::AlignCenter</set>
+           <set>Qt::AlignmentFlag::AlignCenter</set>
           </property>
          </widget>
         </item>
        </layout>
       </item>
-      <!-- Valor K -->
       <item>
        <layout class="QVBoxLayout" name="valorKVBoxLayout">
         <item>
@@ -126,7 +121,7 @@
            <string>K:</string>
           </property>
           <property name="alignment">
-           <set>Qt::AlignCenter</set>
+           <set>Qt::AlignmentFlag::AlignCenter</set>
           </property>
          </widget>
         </item>
@@ -135,7 +130,6 @@
           <property name="font">
            <font>
             <pointsize>18</pointsize>
-            <weight>Bold</weight>
            </font>
           </property>
           <property name="styleSheet">
@@ -145,13 +139,12 @@
            <string>---</string>
           </property>
           <property name="alignment">
-           <set>Qt::AlignCenter</set>
+           <set>Qt::AlignmentFlag::AlignCenter</set>
           </property>
          </widget>
         </item>
        </layout>
       </item>
-      <!-- Valor U1 -->
       <item>
        <layout class="QVBoxLayout" name="valorU1VBoxLayout">
         <item>
@@ -160,7 +153,7 @@
            <string>U1 [V]:</string>
           </property>
           <property name="alignment">
-           <set>Qt::AlignCenter</set>
+           <set>Qt::AlignmentFlag::AlignCenter</set>
           </property>
          </widget>
         </item>
@@ -169,7 +162,6 @@
           <property name="font">
            <font>
             <pointsize>18</pointsize>
-            <weight>Bold</weight>
            </font>
           </property>
           <property name="styleSheet">
@@ -179,13 +171,12 @@
            <string>---</string>
           </property>
           <property name="alignment">
-           <set>Qt::AlignCenter</set>
+           <set>Qt::AlignmentFlag::AlignCenter</set>
           </property>
          </widget>
         </item>
        </layout>
       </item>
-      <!-- Valor I1 -->
       <item>
        <layout class="QVBoxLayout" name="valorI1VBoxLayout">
         <item>
@@ -194,7 +185,7 @@
            <string>I1 [A]:</string>
           </property>
           <property name="alignment">
-           <set>Qt::AlignCenter</set>
+           <set>Qt::AlignmentFlag::AlignCenter</set>
           </property>
          </widget>
         </item>
@@ -203,7 +194,6 @@
           <property name="font">
            <font>
             <pointsize>18</pointsize>
-            <weight>Bold</weight>
            </font>
           </property>
           <property name="styleSheet">
@@ -213,13 +203,12 @@
            <string>---</string>
           </property>
           <property name="alignment">
-           <set>Qt::AlignCenter</set>
+           <set>Qt::AlignmentFlag::AlignCenter</set>
           </property>
          </widget>
         </item>
        </layout>
       </item>
-      <!-- Valor di -->
       <item>
        <layout class="QVBoxLayout" name="valorDiVBoxLayout">
         <item>
@@ -228,7 +217,7 @@
            <string>di:</string>
           </property>
           <property name="alignment">
-           <set>Qt::AlignCenter</set>
+           <set>Qt::AlignmentFlag::AlignCenter</set>
           </property>
          </widget>
         </item>
@@ -237,7 +226,6 @@
           <property name="font">
            <font>
             <pointsize>18</pointsize>
-            <weight>Bold</weight>
            </font>
           </property>
           <property name="styleSheet">
@@ -247,13 +235,12 @@
            <string>---</string>
           </property>
           <property name="alignment">
-           <set>Qt::AlignCenter</set>
+           <set>Qt::AlignmentFlag::AlignCenter</set>
           </property>
          </widget>
         </item>
        </layout>
       </item>
-      <!-- Valor ds -->
       <item>
        <layout class="QVBoxLayout" name="valorDsVBoxLayout">
         <item>
@@ -262,7 +249,7 @@
            <string>ds:</string>
           </property>
           <property name="alignment">
-           <set>Qt::AlignCenter</set>
+           <set>Qt::AlignmentFlag::AlignCenter</set>
           </property>
          </widget>
         </item>
@@ -271,7 +258,6 @@
           <property name="font">
            <font>
             <pointsize>18</pointsize>
-            <weight>Bold</weight>
            </font>
           </property>
           <property name="styleSheet">
@@ -281,7 +267,7 @@
            <string>---</string>
           </property>
           <property name="alignment">
-           <set>Qt::AlignCenter</set>
+           <set>Qt::AlignmentFlag::AlignCenter</set>
           </property>
          </widget>
         </item>
@@ -290,7 +276,7 @@
       <item>
        <spacer name="measurementRightSpacer">
         <property name="orientation">
-         <enum>Qt::Horizontal</enum>
+         <enum>Qt::Orientation::Horizontal</enum>
         </property>
         <property name="sizeHint" stdset="0">
          <size>
@@ -303,19 +289,16 @@
      </layout>
     </widget>
    </item>
-   <!-- 2. CONTENEDOR PRINCIPAL: CONSOLA (IZQ) vs UI (DER) -->
    <item>
     <layout class="QHBoxLayout" name="mainHBoxLayout" stretch="3,1">
-     <!-- 2.1 ÁREA IZQUIERDA -->
      <item>
       <layout class="QVBoxLayout" name="leftAreaVBoxLayout">
-       <!-- 2.1.1 BARRA DE HERRAMIENTAS -->
        <item>
         <layout class="QHBoxLayout" name="consoleHeaderLayout">
          <item>
           <spacer name="headerSpacer">
            <property name="orientation">
-            <enum>Qt::Horizontal</enum>
+            <enum>Qt::Orientation::Horizontal</enum>
            </property>
            <property name="sizeHint" stdset="0">
             <size>
@@ -336,7 +319,6 @@
            <property name="font">
             <font>
              <pointsize>10</pointsize>
-             <weight>Bold</weight>
             </font>
            </property>
            <property name="styleSheet">
@@ -360,7 +342,7 @@
          <item>
           <widget class="Line" name="line">
            <property name="orientation">
-            <enum>Qt::Vertical</enum>
+            <enum>Qt::Orientation::Vertical</enum>
            </property>
           </widget>
          </item>
@@ -397,10 +379,8 @@
          </item>
         </layout>
        </item>
-       <!-- 2.1.2 WIDGET APILADO PARA LAS VISTAS -->
        <item>
         <widget class="QStackedWidget" name="viewStackedWidget">
-         <!-- PÁGINA 0: MODO CONSOLA -->
          <widget class="QWidget" name="pageConsole">
           <layout class="QVBoxLayout" name="consoleVBoxLayout">
            <property name="leftMargin">
@@ -459,9 +439,8 @@
            </item>
           </layout>
          </widget>
-         <!-- PÁGINA 1: MODO GRÁFICO -->
          <widget class="QWidget" name="pageGraphics">
-          <layout class="QVBoxLayout" name="graphicsVBoxLayout" stretch="1,0,3">
+          <layout class="QVBoxLayout" name="graphicsVBoxLayout" stretch="0,0,1,0,3">
            <item>
             <widget class="QLabel" name="graphicViewTitle">
              <property name="font">
@@ -471,23 +450,171 @@
               </font>
              </property>
              <property name="styleSheet">
-              <string notr="true">color: #28a745;</string>
+              <string notr="true">color: #007bff;</string>
              </property>
              <property name="text">
-              <string>Menú Principal</string>
+              <string>SISTEMA TVK6</string>
              </property>
              <property name="alignment">
-              <set>Qt::AlignCenter</set>
+              <set>Qt::AlignmentFlag::AlignCenter</set>
              </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QFrame" name="datosMedidorHeader">
+             <property name="frameShape">
+              <enum>QFrame::Shape::StyledPanel</enum>
+             </property>
+             <property name="frameShadow">
+              <enum>QFrame::Shadow::Raised</enum>
+             </property>
+             <layout class="QHBoxLayout" name="datosMedidorHeaderLayout">
+              <item>
+               <spacer name="horizontalSpacer">
+                <property name="orientation">
+                 <enum>Qt::Orientation::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QLabel" name="labelDatosX">
+                <property name="text">
+                 <string>X =</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="valorDatosX">
+                <property name="font">
+                 <font>
+                  <pointsize>14</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">color: #28a745;</string>
+                </property>
+                <property name="text">
+                 <string>0.0</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="labelDatosK">
+                <property name="text">
+                 <string>K =</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="valorDatosK">
+                <property name="font">
+                 <font>
+                  <pointsize>14</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">color: #007bff;</string>
+                </property>
+                <property name="text">
+                 <string>1.0</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="labelDatosM">
+                <property name="text">
+                 <string>M =</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="valorDatosM">
+                <property name="font">
+                 <font>
+                  <pointsize>14</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">color: #e83e8c;</string>
+                </property>
+                <property name="text">
+                 <string>---</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="labelDatosT">
+                <property name="text">
+                 <string>T =</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="valorDatosT">
+                <property name="font">
+                 <font>
+                  <pointsize>14</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">color: #fd7e14;</string>
+                </property>
+                <property name="text">
+                 <string>---</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="labelDatosU1">
+                <property name="text">
+                 <string>U1 =</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="valorDatosU1">
+                <property name="font">
+                 <font>
+                  <pointsize>14</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">color: #ffc107;</string>
+                </property>
+                <property name="text">
+                 <string>---</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_2">
+                <property name="orientation">
+                 <enum>Qt::Orientation::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
             </widget>
            </item>
            <item>
             <widget class="QFrame" name="customGraphicFrame">
              <property name="frameShape">
-              <enum>QFrame::StyledPanel</enum>
+              <enum>QFrame::Shape::StyledPanel</enum>
              </property>
              <property name="frameShadow">
-              <enum>QFrame::Raised</enum>
+              <enum>QFrame::Shadow::Raised</enum>
              </property>
              <layout class="QVBoxLayout" name="customGraphicLayout">
               <item>
@@ -496,18 +623,15 @@
                  <string>(Área para widgets personalizados por pantalla)</string>
                 </property>
                 <property name="alignment">
-                 <set>Qt::AlignCenter</set>
+                 <set>Qt::AlignmentFlag::AlignCenter</set>
                 </property>
                </widget>
               </item>
              </layout>
             </widget>
            </item>
-           <!-- Layout para los botones, ahora debajo del área de widgets -->
            <item>
-            <layout class="QHBoxLayout" name="graphicsHorizontalButtonLayout">
-             <!-- Este layout se llenará dinámicamente con botones -->
-            </layout>
+            <layout class="QHBoxLayout" name="graphicsHorizontalButtonLayout"/>
            </item>
           </layout>
          </widget>
@@ -515,10 +639,8 @@
        </item>
       </layout>
      </item>
-     <!-- 2.2 PANEL DERECHO -->
      <item>
       <layout class="QVBoxLayout" name="controlVBoxLayout">
-       <!-- NUEVO PANEL DE ACCIONES PRINCIPALES -->
        <item>
         <widget class="QGroupBox" name="groupBoxAcciones">
          <property name="title">
@@ -534,9 +656,7 @@
              </size>
             </property>
             <property name="font">
-             <font>
-              <weight>Bold</weight>
-             </font>
+             <font/>
             </property>
             <property name="styleSheet">
              <string notr="true">background-color: #ffc107; color: black;</string>
@@ -555,9 +675,7 @@
              </size>
             </property>
             <property name="font">
-             <font>
-              <weight>Bold</weight>
-             </font>
+             <font/>
             </property>
             <property name="styleSheet">
              <string notr="true">background-color: #28a745; color: white;</string>
@@ -576,9 +694,7 @@
              </size>
             </property>
             <property name="font">
-             <font>
-              <weight>Bold</weight>
-             </font>
+             <font/>
             </property>
             <property name="styleSheet">
              <string notr="true">background-color: #007bff; color: white;</string>
@@ -591,21 +707,18 @@
          </layout>
         </widget>
        </item>
-       <!-- Botones de Acción -->
        <item>
         <widget class="QGroupBox" name="groupBoxMenuDinamico">
          <property name="title">
           <string>Comandos Rápidos</string>
          </property>
-         <layout class="QVBoxLayout" name="dynamicButtonVBoxLayout">
-          <!-- Este layout se llenará dinámicamente con código -->
-         </layout>
+         <layout class="QVBoxLayout" name="dynamicButtonVBoxLayout"/>
         </widget>
        </item>
        <item>
         <spacer name="verticalSpacer">
          <property name="orientation">
-          <enum>Qt::Vertical</enum>
+          <enum>Qt::Orientation::Vertical</enum>
          </property>
          <property name="sizeHint" stdset="0">
           <size>

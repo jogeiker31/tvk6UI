@@ -6,8 +6,7 @@ las interacciones y la orquestación del SerialWorker.
 """
 import re
 from collections import deque
-
-from PySide6.QtWidgets import (QMainWindow, QLineEdit, QPlainTextEdit, QLabel, QPushButton, QVBoxLayout, QGroupBox, QMenu, QComboBox, QStackedWidget, QCheckBox,
+from PySide6.QtWidgets import (QMainWindow, QLineEdit, QPlainTextEdit, QLabel, QPushButton, QVBoxLayout, QGroupBox, QMenu, QComboBox, QStackedWidget, QCheckBox, QFrame,
                                QGraphicsDropShadowEffect)
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import Signal, Slot, QThread, Qt, QTimer, QObject
@@ -23,6 +22,7 @@ from state_manager import StateManager
 from database import DatabaseManager
 from ui_model_manager import ModelManagerDialog
 from calibration_view import CalibrationTableView
+from ui_input_dialog import InputDialog
 
 class SequenceManager(QObject):
     """Gestiona la ejecución de una secuencia de comandos con retardos."""
@@ -175,7 +175,7 @@ class MainWindow(QMainWindow):
 
         # --- INICIO DE LA MODIFICACIÓN: Temporizador para procesar snapshots ---
         self.processing_timer = QTimer(self)
-        self.processing_timer.setInterval(2000)  # ms de espera antes de procesar (2 segundos)
+        self.processing_timer.setInterval(1000)  # ms de espera antes de procesar (2 segundos)
         self.processing_timer.setSingleShot(True)
         self.processing_timer.timeout.connect(self._process_screen_snapshot)
         
@@ -208,14 +208,23 @@ class MainWindow(QMainWindow):
 
         # Widgets para el cambio de vista
         self.viewSwitcher = self.ui.findChild(QCheckBox, 'viewSwitcher')
-        self.viewStackedWidget = self.ui.findChild(QStackedWidget, 'viewStackedWidget')
         self.graphicViewTitle = self.ui.findChild(QLabel, 'graphicViewTitle')
+        self.viewStackedWidget = self.ui.findChild(QStackedWidget, 'viewStackedWidget')
         # --- INICIO DE LA MODIFICACIÓN: Widget para la vista de calibración ---
         # Referencia al label genérico para poder ocultarlo
         self.customGraphicLabel = self.ui.findChild(QLabel, 'label')
         self.customGraphicLayout = self.ui.findChild(QVBoxLayout, 'customGraphicLayout')
         self.calibration_table_view = CalibrationTableView(rows=2, cols=10)
         self.customGraphicLayout.insertWidget(0, self.calibration_table_view) # Añadirlo al layout
+        # --- INICIO DE LA MODIFICACIÓN: Cabecera de Datos Medidor ---
+        self.datosMedidorHeader = self.ui.findChild(QFrame, 'datosMedidorHeader')
+        self.valorDatosX = self.ui.findChild(QLabel, 'valorDatosX')
+        self.valorDatosK = self.ui.findChild(QLabel, 'valorDatosK')
+        self.valorDatosM = self.ui.findChild(QLabel, 'valorDatosM')
+        self.valorDatosT = self.ui.findChild(QLabel, 'valorDatosT')
+        self.valorDatosU1 = self.ui.findChild(QLabel, 'valorDatosU1')
+        self.datosMedidorHeader.setVisible(False) # Oculto por defecto
+        # --- FIN DE LA MODIFICACIÓN ---
         self.calibration_table_view.setVisible(False) # Oculto por defecto
         # --- FIN DE LA MODIFICACIÓN ---
 
@@ -375,7 +384,7 @@ class MainWindow(QMainWindow):
             self.btnGestionarModelos.setEnabled(True)
 
     @Slot(str)
-    def send_command(self, command=None):
+    def send_command(self, command=None, from_button=False):
         """Recupera el texto o usa el comando del botón y lo envía al worker."""
         is_from_input_field = command is None
         if command is None and self.campoComando:
@@ -384,24 +393,44 @@ class MainWindow(QMainWindow):
         if not command:
             return
 
-        # --- INICIO DE LA MODIFICACIÓN: Log de comandos enviados ---
-        self.monitorSalida.appendPlainText(f"-> CMD: '{command}'")
-        # --- FIN DE LA MODIFICACIÓN ---
-        # --- INICIO DE LA MODIFICACIÓN: Lógica de envío contextual ---
-        # Si el comando viene del campo de texto, es un dato para el dispositivo, no un comando de navegación.
-        # Por lo tanto, solo lo enviamos al worker.
-        # La lógica de si añadir \r o no la maneja el SerialWorker.
-        if command: # Asegurarse de que el comando no esté vacío
+        # --- INICIO DE LA MODIFICACIÓN: Lógica de diálogo modal para DATOS_MEDIDOR ---
+        current_state = self.state_manager.get_current_state_name()
+        if from_button and current_state == 'DATOS_MEDIDOR_MENU' and command in ['1', '2', '3', '4']:
+            # Mapeo de comandos a títulos y etiquetas para el diálogo
+            dialog_map = {
+                '1': ("Entrar Valor X", "Nuevo valor para X [r/kWh]:"),
+                '2': ("Entrar Valor K", "Nuevo valor para K:"),
+                '3': ("Entrar Valor M", "Nuevo valor para M:"),
+                '4': ("Entrar Valor T", "Nuevo valor para T [min]:")
+            }
+            title, label = dialog_map[command]
+
+            # Primero, enviamos el comando numérico para entrar al modo de edición en el TVK6
+            self.monitorSalida.appendPlainText(f"-> CMD: '{command}' (Abriendo diálogo)")
+            self.send_to_worker.emit(command)
+
+            # Abrimos el diálogo modal
+            dialog = InputDialog(title, label, self)
+            if dialog.exec() == InputDialog.Accepted:
+                value = dialog.get_value()
+                self.monitorSalida.appendPlainText(f"-> DATO: Enviando '{value}'")
+                # Enviamos el valor introducido por el usuario
+                self.send_to_worker.emit(value)
+                # El SerialWorker ya añade un 'enter' (\r) al final de un envío de múltiples caracteres,
+                # por lo que no necesitamos enviar 'enter' explícitamente aquí.
+        else:
+            # Lógica de envío normal para todos los demás comandos y estados
+            self.monitorSalida.appendPlainText(f"-> CMD: '{command}'")
             self.command_to_statemanager.emit(command) # Notificar al StateManager
             self.send_to_worker.emit(command) # Enviar al SerialWorker
-        # --- FIN DE LA MODIFICACIÓN ---
-
+        
         if not self.thread or not self.thread.isRunning() or not self.worker.serial_port or not self.worker.serial_port.is_open:
             if self.monitorSalida:
                 self.monitorSalida.appendPlainText(f"[ERROR LOCAL] No se pudo enviar '{command}': Puerto no conectado.")
             if self.campoComando:
                 self.campoComando.clear()
             return
+        # --- FIN DE LA MODIFICACIÓN ---
 
         if self.campoComando:
             self.campoComando.clear()
@@ -495,7 +524,28 @@ class MainWindow(QMainWindow):
         # 3. Dibujar los botones del menú actual.
         self.state_manager.process_screen_text(screen_text, self.measurement_panel)
         # --- INICIO DE LA MODIFICACIÓN: Actualizar vista gráfica de calibración ---
+        # --- INICIO DE LA MODIFICACIÓN: Lógica de visibilidad de widgets personalizados ---
         current_state = self.state_manager.get_current_state_name()
+
+        # Visibilidad del título principal en el modo gráfico
+        if current_state == 'MAIN_MENU':
+            self.graphicViewTitle.setVisible(True)
+        else:
+            self.graphicViewTitle.setVisible(False)
+
+        # Visibilidad de la cabecera de Datos Medidor
+        if current_state == 'DATOS_MEDIDOR_MENU':
+            self.datosMedidorHeader.setVisible(True)
+            # Actualizar valores en la cabecera
+            self.valorDatosX.setText(self.state_manager.parsed_values.get('X', '---'))
+            self.valorDatosK.setText(self.state_manager.parsed_values.get('K', '---'))
+            self.valorDatosM.setText(self.state_manager.parsed_values.get('M', '---'))
+            self.valorDatosT.setText(self.state_manager.parsed_values.get('T', '---'))
+            self.valorDatosU1.setText(self.state_manager.parsed_values.get('U1', '---'))
+        else:
+            self.datosMedidorHeader.setVisible(False)
+
+        # Visibilidad de la tabla de calibración
         if current_state == 'CALIBRAR_TABLE_VIEW':
             self.calibration_table_view.setVisible(True)
             self.customGraphicLabel.setVisible(False) # Ocultar texto genérico
@@ -503,7 +553,6 @@ class MainWindow(QMainWindow):
             di = self.state_manager.parsed_values.get('di', '---')
             ds = self.state_manager.parsed_values.get('ds', '---')
             self.calibration_table_view.update_values(screen_text, di, ds)
-            self.graphicViewTitle.setText("Tabla de Calibración")
             # --- INICIO DE LA MODIFICACIÓN: Dibujar botones del menú de calibración ---
             # Forzamos que se dibujen los botones del menú de calibración debajo de la tabla.
             self.menu_manager.parse_and_draw(screen_text, force_config_name='CALIBRAR_MENU')
@@ -513,7 +562,7 @@ class MainWindow(QMainWindow):
             self.calibration_table_view.setVisible(False)
             self.customGraphicLabel.setVisible(True) # Mostrar texto genérico
             # Restaurar el título si es necesario (esto podría necesitar más lógica)
-            # El título es establecido por MenuManager.update_menu_config
+        # --- FIN DE LA MODIFICACIÓN ---
         # --- FIN DE LA MODIFICACIÓN ---
 
     @Slot(str)

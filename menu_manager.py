@@ -23,10 +23,9 @@ class MenuManager:
         self.console_menu_layout = parent_ui.findChild(QVBoxLayout, 'dynamicButtonVBoxLayout')
         # Layout para la vista gráfica (horizontal)
         self.graphic_menu_layout = parent_ui.findChild(QHBoxLayout, 'graphicsHorizontalButtonLayout')
-        # Título de la vista gráfica
-        self.graphic_view_title = parent_ui.findChild(QLabel, 'graphicViewTitle')
 
-        if not all([self.dynamic_menu_group_box, self.console_menu_layout, self.graphic_menu_layout, self.graphic_view_title]):
+        # El graphicViewTitle fue eliminado, así que lo quitamos de la comprobación.
+        if not all([self.dynamic_menu_group_box, self.console_menu_layout, self.graphic_menu_layout]):
             raise RuntimeError("No se pudieron encontrar todos los widgets de menú en la UI.")
         
         self.console_buttons = []
@@ -63,8 +62,9 @@ class MenuManager:
             button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         
         # Conectar el clic del botón para enviar el comando numérico
-        # Usamos partial para "congelar" el valor de 'number' en el momento de la creación
-        button.clicked.connect(partial(self.main_window.send_command, number))
+        # Usamos partial para "congelar" el valor de 'number' y el flag 'from_button=True'
+        # para indicar que la llamada viene de un clic de botón.
+        button.clicked.connect(partial(self.main_window.send_command, number, from_button=True))
         
         return button
 
@@ -75,11 +75,9 @@ class MenuManager:
         self.clear_menu()
         if self.current_config and 'title' in self.current_config:
             self.dynamic_menu_group_box.setTitle(self.current_config['title'])
-            self.graphic_view_title.setText(self.current_config['title'])
         else:
             # Título por defecto si no hay menú o configuración
             self.dynamic_menu_group_box.setTitle("Comandos Rápidos")
-            self.graphic_view_title.setText("TVK6")
 
     def parse_and_draw(self, screen_text, force_config_name=None):
         """Parsea el texto de la pantalla usando la configuración actual y dibuja los botones."""

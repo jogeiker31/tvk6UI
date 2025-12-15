@@ -18,7 +18,7 @@ class StateManager(QObject): # Inherit from QObject
         self.current_state = 'INIT'
         self._load_config(config_file)
         self.history = [] # Pila para el historial de navegación
-        self.parsed_values = {'X': '---', 'K': '---', 'U1': '---', 'I1': '---', 'di': '---', 'ds': '---'}
+        self.parsed_values = {'X': '---', 'K': '---', 'M': '---', 'T': '---', 'U1': '---', 'I1': '---', 'di': '---', 'ds': '---'}
         self.menu_manager.update_menu_config(None) # Iniciar sin menú
 
     def _load_config(self, config_file):
@@ -35,15 +35,19 @@ class StateManager(QObject): # Inherit from QObject
 
     def process_screen_text(self, screen_text, measurement_panel=None):
         """Analiza el texto de la pantalla para detectar cambios de estado automáticos."""
-        # Parseo de X, K, U1
+        # Parseo de X, K, M, T, U1
         # Estos valores pueden aparecer en DATOS_MEDIDOR_MENU, CALIBRAR_MENU y CALIBRAR_TABLE_VIEW
         if self.current_state in ['DATOS_MEDIDOR_MENU', 'CALIBRAR_MENU', 'CALIBRAR_TABLE_VIEW']:
             x_match = re.search(r'X\s*=\s*([0-9.]+)', screen_text)
             k_match = re.search(r'K\s*=\s*([0-9.]+)', screen_text)
+            m_match = re.search(r'M\s*=\s*([0-9.]+)', screen_text)
+            t_match = re.search(r'T\s*=\s*([0-9.]+)', screen_text)
             u1_match = re.search(r'U1\s*=\s*([0-9.]+)', screen_text)
 
             if x_match: self.parsed_values['X'] = x_match.group(1)
             if k_match: self.parsed_values['K'] = k_match.group(1)
+            if m_match: self.parsed_values['M'] = m_match.group(1)
+            if t_match: self.parsed_values['T'] = t_match.group(1)
             if u1_match: self.parsed_values['U1'] = u1_match.group(1)
         
         # Parseo de di, ds e I1
