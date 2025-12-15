@@ -113,6 +113,21 @@ class MainWindow(QMainWindow):
         self.calibrationHeader = self.ui.findChild(QFrame, 'calibrationHeader')
         self.valorCalibPercent = self.ui.findChild(QLabel, 'valorCalibPercent')
         self.valorCalibIndicac = self.ui.findChild(QLabel, 'valorCalibIndicac')
+        self.valorCalibX = self.ui.findChild(QLabel, 'valorCalibX')
+        self.valorCalibK = self.ui.findChild(QLabel, 'valorCalibK')
+        self.valorCalibM = self.ui.findChild(QLabel, 'valorCalibM')
+        self.valorCalibT = self.ui.findChild(QLabel, 'valorCalibT')
+        self.valorCalibU1 = self.ui.findChild(QLabel, 'valorCalibU1')
+        # Fila 4 de la cabecera de calibración
+        self.valorCalibNo = self.ui.findChild(QLabel, 'valorCalibNo')
+        self.valorCalibI = self.ui.findChild(QLabel, 'valorCalibI')
+        self.valorCalibL123 = self.ui.findChild(QLabel, 'valorCalibL123')
+        self.valorCalibCos = self.ui.findChild(QLabel, 'valorCalibCos')
+        self.valorCalibDi = self.ui.findChild(QLabel, 'valorCalibDi')
+        self.valorCalibDs = self.ui.findChild(QLabel, 'valorCalibDs')
+        self.valorCalibGo = self.ui.findChild(QLabel, 'valorCalibGo')
+        self.valorCalibR = self.ui.findChild(QLabel, 'valorCalibR')
+        self.valorCalibI1A = self.ui.findChild(QLabel, 'valorCalibI1A')
         self.calibrationHeader.setVisible(False) # Oculto por defecto
         self.datosMedidorHeader.setVisible(False) # Oculto por defecto
         # --- FIN DE LA MODIFICACIÓN ---
@@ -474,6 +489,17 @@ class MainWindow(QMainWindow):
             self.valorCalibPercent.setText(self.state_manager.parsed_values.get('calib_percent', '---'))
             indicac_text = self.state_manager.parsed_values.get('calib_indicac', '---')
             self.valorCalibIndicac.setText(f"INDICAC.: {indicac_text}")
+            # Actualizar la segunda fila de la cabecera de calibración
+            self.valorCalibX.setText(self.state_manager.parsed_values.get('X', '---'))
+            self.valorCalibK.setText(self.state_manager.parsed_values.get('K', '---'))
+            self.valorCalibM.setText(self.state_manager.parsed_values.get('M', '---'))
+            self.valorCalibT.setText(self.state_manager.parsed_values.get('T', '---'))
+            self.valorCalibU1.setText(self.state_manager.parsed_values.get('U1', '---'))
+            # Actualizar la cuarta fila (datos de la tabla)
+            self.valorCalibDi.setText(self.state_manager.parsed_values.get('di', '---'))
+            self.valorCalibDs.setText(self.state_manager.parsed_values.get('ds', '---'))
+            self.valorCalibI1A.setText(self.state_manager.parsed_values.get('I1', '---'))
+            # Los otros valores (No, I, L123, etc.) no se parsean actualmente. Se mostrarán como '---'.
         else:
             self.calibrationHeader.setVisible(False)
 

@@ -464,7 +464,7 @@
           </layout>
          </widget>
          <widget class="QWidget" name="pageGraphics">
-          <layout class="QVBoxLayout" name="graphicsVBoxLayout" stretch="0,0,1,0,3">
+          <layout class="QVBoxLayout" name="graphicsVBoxLayout" stretch="0,0,0,1,0">
            <item>
             <widget class="QLabel" name="graphicViewTitle">
              <property name="font">
@@ -640,62 +640,292 @@
              <property name="frameShadow">
               <enum>QFrame::Shadow::Raised</enum>
              </property>
-             <layout class="QHBoxLayout" name="calibrationHeaderLayout">
-              <item>
-               <spacer name="horizontalSpacer_3">
-                <property name="orientation">
-                 <enum>Qt::Orientation::Horizontal</enum>
-                </property>
-                <property name="sizeHint" stdset="0">
-                 <size>
-                  <width>40</width>
-                  <height>20</height>
-                 </size>
-                </property>
-               </spacer>
+             <layout class="QVBoxLayout" name="calibHeaderVLayout">
+               <item>
+                <layout class="QHBoxLayout" name="calibHeaderRow1Layout">
+                 <item>
+                  <widget class="QLabel" name="valorCalibPercent">
+                   <property name="styleSheet">
+                    <string notr="true">color: #17a2b8; font-weight: bold;</string>
+                   </property>
+                   <property name="text">
+                    <string>xx.x o/o</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <spacer name="horizontalSpacer_7">
+                   <property name="orientation">
+                    <enum>Qt::Orientation::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>40</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                 <item>
+                  <widget class="QLabel" name="valorCalibIndicac">
+                   <property name="styleSheet">
+                    <string notr="true">color: #6f42c1; font-weight: bold;</string>
+                   </property>
+                   <property name="text">
+                    <string>INDICAC.: ---</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <spacer name="horizontalSpacer_4">
+                   <property name="orientation">
+                    <enum>Qt::Orientation::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>40</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                </layout>
               </item>
               <item>
-               <widget class="QLabel" name="valorCalibPercent">
-                <property name="font">
-                 <font>
-                  <pointsize>14</pointsize>
-                 </font>
-                </property>
-                <property name="styleSheet">
-                 <string notr="true">color: #17a2b8; font-weight: bold;</string>
-                </property>
-                <property name="text">
-                 <string>xx.x o/o</string>
-                </property>
-               </widget>
+               <layout class="QHBoxLayout" name="calibHeaderRow2Layout">
+                <item>
+                 <widget class="QLabel" name="labelCalibX">
+                  <property name="text">
+                   <string>X =</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="valorCalibX">
+                  <property name="styleSheet">
+                   <string notr="true">color: #28a745;</string>
+                  </property>
+                  <property name="text">
+                   <string>---</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="labelCalibK">
+                  <property name="text">
+                   <string>K =</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="valorCalibK">
+                  <property name="styleSheet">
+                   <string notr="true">color: #007bff;</string>
+                  </property>
+                  <property name="text">
+                   <string>---</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="labelCalibM">
+                  <property name="text">
+                   <string>M =</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="valorCalibM">
+                  <property name="styleSheet">
+                   <string notr="true">color: #e83e8c;</string>
+                  </property>
+                  <property name="text">
+                   <string>---</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="labelCalibT">
+                  <property name="text">
+                   <string>T =</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="valorCalibT">
+                  <property name="styleSheet">
+                   <string notr="true">color: #fd7e14;</string>
+                  </property>
+                  <property name="text">
+                   <string>---</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="labelCalibU1">
+                  <property name="text">
+                   <string>U1 =</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="valorCalibU1">
+                  <property name="styleSheet">
+                   <string notr="true">color: #ffc107;</string>
+                  </property>
+                  <property name="text">
+                   <string>---</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <spacer name="horizontalSpacer_6">
+                  <property name="orientation">
+                   <enum>Qt::Orientation::Horizontal</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>40</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+               </layout>
               </item>
               <item>
-               <widget class="QLabel" name="valorCalibIndicac">
-                <property name="font">
-                 <font>
-                  <pointsize>14</pointsize>
-                 </font>
-                </property>
-                <property name="styleSheet">
-                 <string notr="true">color: #6f42c1; font-weight: bold;</string>
-                </property>
-                <property name="text">
-                 <string>INDICAC.: ---</string>
-                </property>
-               </widget>
+               <layout class="QHBoxLayout" name="calibHeaderRow3Layout">
+                <item>
+                 <widget class="QLabel" name="labelCalibHdrNo">
+                  <property name="text">
+                   <string>No</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="labelCalibHdrI">
+                  <property name="text">
+                   <string>I [%]</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="labelCalibHdrL123">
+                  <property name="text">
+                   <string>L1-2-3</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="labelCalibHdrCos">
+                  <property name="text">
+                   <string>cos/sin</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="labelCalibHdrDi">
+                  <property name="text">
+                   <string>di</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="labelCalibHdrDs">
+                  <property name="text">
+                   <string>ds</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="labelCalibHdrGo">
+                  <property name="text">
+                   <string>Go</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="labelCalibHdrR">
+                  <property name="text">
+                   <string>r</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="labelCalibHdrI1">
+                  <property name="text">
+                   <string>I1 [A]</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
               </item>
               <item>
-               <spacer name="horizontalSpacer_4">
-                <property name="orientation">
-                 <enum>Qt::Orientation::Horizontal</enum>
-                </property>
-                <property name="sizeHint" stdset="0">
-                 <size>
-                  <width>40</width>
-                  <height>20</height>
-                 </size>
-                </property>
-               </spacer>
+               <layout class="QHBoxLayout" name="calibHeaderRow4Layout">
+                <item>
+                 <widget class="QLabel" name="valorCalibNo">
+                  <property name="text">
+                   <string>---</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="valorCalibI">
+                  <property name="text">
+                   <string>---</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="valorCalibL123">
+                  <property name="text">
+                   <string>---</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="valorCalibCos">
+                  <property name="text">
+                   <string>---</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="valorCalibDi">
+                  <property name="text">
+                   <string>---</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="valorCalibDs">
+                  <property name="text">
+                   <string>---</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="valorCalibGo">
+                  <property name="text">
+                   <string>---</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="valorCalibR">
+                  <property name="text">
+                   <string>---</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="valorCalibI1A">
+                  <property name="text">
+                   <string>---</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
               </item>
              </layout>
             </widget>
