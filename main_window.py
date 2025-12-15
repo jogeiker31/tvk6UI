@@ -23,127 +23,8 @@ from database import DatabaseManager
 from ui_model_manager import ModelManagerDialog
 from calibration_view import CalibrationTableView
 from ui_input_dialog import InputDialog
-
-class SequenceManager(QObject):
-    """Gestiona la ejecución de una secuencia de comandos con retardos."""
-    send_command = Signal(str)
-    sequence_finished = Signal(str)
-
-    def __init__(self, delay=500, parent=None):
-        super().__init__(parent)
-        self.command_queue = deque()
-        self.timer = QTimer(self)
-        self.timer.setSingleShot(True)
-        self.timer.timeout.connect(self._send_next_command)
-        self.delay = delay
-
-    def start_sequence(self, commands):
-        self.command_queue = deque(commands)
-        self._send_next_command()
-
-    def _send_next_command(self):
-        if self.command_queue:
-            command = self.command_queue.popleft()
-            self.send_command.emit(command)
-            # Si aún quedan comandos, programar el siguiente.
-            # Si no quedan, emitir la señal de finalización inmediatamente.
-            if self.command_queue:
-                self.timer.start(self.delay)
-            else:
-                self.sequence_finished.emit("Secuencia de calibración rápida completada.")
-
-class ScreenEmulator:
-    """Emulador simple de terminal VT100 para reconstruir la pantalla del TVK6."""
-    def __init__(self, rows=24, cols=80):
-        self.rows = rows
-        self.cols = cols
-        self.screen = [[' ' for _ in range(cols)] for _ in range(rows)]
-        self.cursor_pos = [0, 0]
-        self.ansi_pattern = re.compile(r'\x1b\[([0-9;?]*)([A-Za-z])')
-        # --- INICIO DE LA MODIFICACIÓN: Buffer para datos incompletos ---
-        self.incomplete_data_buffer = ""
-        # --- FIN DE LA MODIFICACIÓN ---
-
-    def reset(self):
-        """Limpia la pantalla y resetea la posición del cursor."""
-        self.screen = [[' ' for _ in range(self.cols)] for _ in range(self.rows)]
-        self.cursor_pos = [0, 0]
-        self.incomplete_data_buffer = "" # También reseteamos el buffer
-
-    def process_data(self, data: str):
-        """Procesa un fragmento de datos, actualizando el estado de la pantalla."""
-        # --- INICIO DE LA MODIFICACIÓN: Unir buffer con nuevos datos ---
-        data = self.incomplete_data_buffer + data
-        self.incomplete_data_buffer = "" # Limpiamos el buffer una vez usado
-        # Procesamos el flujo de datos carácter por carácter para un manejo robusto de ANSI.
-        i = 0
-        while i < len(data):
-            char = data[i] 
-
-            if char == '\x1b':
-                
-                i += 1 # Consumimos '\x1b'
-                if i >= len(data): # Secuencia incompleta, guardamos y salimos
-                    self.incomplete_data_buffer = "\x1b"
-                    break
-
-                if data[i] == '[': # Secuencia CSI (Control Sequence Introducer)
-                    i += 1 # Consumimos '['
-                    params_str = ""
-                    while i < len(data) and data[i] in '0123456789;?':
-                        params_str += data[i]
-                        i += 1
-                    
-                    if i >= len(data): # Secuencia CSI incompleta
-                        self.incomplete_data_buffer = "\x1b[" + params_str
-                        break
-                    else: # Secuencia CSI completa
-                        command = data[i]
-                        params = params_str.split(';')
-
-                        if command == 'H': # Mover cursor
-                            row = int(params[0]) - 1 if params and params[0] else 0
-                            col = int(params[1]) - 1 if len(params) > 1 and params[1] else 0
-                            self.cursor_pos = [max(0, min(row, self.rows - 1)), max(0, min(col, self.cols - 1))]
-                        elif command == 'C': # Cursor Forward (CUF)
-                            num_cols = int(params[0]) if params and params[0] else 1
-                            self.cursor_pos[1] = min(self.cols - 1, self.cursor_pos[1] + num_cols)
-                        elif command == 'D': # Cursor Backward (CUB)
-                            num_cols = int(params[0]) if params and params[0] else 1
-                            self.cursor_pos[1] = max(0, self.cursor_pos[1] - num_cols)
-                        elif command == 'K': # Erase in Line (EL)
-                            if not params_str or params_str == '0': # Por defecto: borrar desde el cursor hasta el final de la línea
-                                row, col = self.cursor_pos
-                                for c in range(col, self.cols):
-                                    self.screen[row][c] = ' '
-                        # Consumimos el carácter de comando CSI
-                        i += 1 
-                elif data[i] in '#()': # Secuencias como ESC #6, ESC )0, ESC (B
-                    i += 1 # Consumimos '#' o '(' o ')'
-                    if i >= len(data): # Secuencia incompleta
-                        self.incomplete_data_buffer = f"\x1b{data[i-1]}"
-                        break
-                    else: # Consumimos el siguiente carácter (ej. '6', '0', 'B')
-                        i += 1
-                else: # Otras secuencias de escape de un solo carácter (ej. ESC E)
-                    # No hay nada que guardar si se corta aquí, ya que es un solo carácter
-                    # después de ESC, así que simplemente avanzamos.
-                    i += 1
-                # --- FIN DE LA MODIFICACIÓN ---
-            else: # No es una secuencia de escape, es un carácter normal
-                # Ignoramos caracteres de control no imprimibles como SO/SI (0x0e, 0x0f)
-                if char == '\n':
-                    self.cursor_pos[0] += 1 # Mover a la siguiente línea
-                elif char not in '\x0e\x0f\r':
-                    row, col = self.cursor_pos
-                    if row < self.rows and col < self.cols:
-                        self.screen[row][col] = char
-                        self.cursor_pos[1] += 1
-                i += 1 # Avanzamos al siguiente carácter
-
-    def get_screen_text(self) -> str:
-        """Devuelve el contenido de la pantalla como un string multilinea."""
-        return "\n".join("".join(row) for row in self.screen)
+from sequence_manager import SequenceManager
+from screen_emulator import ScreenEmulator
 
 class MainWindow(QMainWindow):
     """Ventana principal que carga la UI y conecta la lógica."""
@@ -212,7 +93,6 @@ class MainWindow(QMainWindow):
         self.viewStackedWidget = self.ui.findChild(QStackedWidget, 'viewStackedWidget')
         # --- INICIO DE LA MODIFICACIÓN: Widget para la vista de calibración ---
         # Referencia al label genérico para poder ocultarlo
-        self.customGraphicLabel = self.ui.findChild(QLabel, 'label')
         self.customGraphicLayout = self.ui.findChild(QVBoxLayout, 'customGraphicLayout')
         self.calibration_table_view = CalibrationTableView(rows=2, cols=10)
         self.customGraphicLayout.insertWidget(0, self.calibration_table_view) # Añadirlo al layout
@@ -223,9 +103,18 @@ class MainWindow(QMainWindow):
         self.valorDatosM = self.ui.findChild(QLabel, 'valorDatosM')
         self.valorDatosT = self.ui.findChild(QLabel, 'valorDatosT')
         self.valorDatosU1 = self.ui.findChild(QLabel, 'valorDatosU1')
+        self.calibrationHeader = self.ui.findChild(QFrame, 'calibrationHeader')
+        self.valorCalibPercent = self.ui.findChild(QLabel, 'valorCalibPercent')
+        self.valorCalibIndicac = self.ui.findChild(QLabel, 'valorCalibIndicac')
+        self.calibrationHeader.setVisible(False) # Oculto por defecto
         self.datosMedidorHeader.setVisible(False) # Oculto por defecto
         # --- FIN DE LA MODIFICACIÓN ---
         self.calibration_table_view.setVisible(False) # Oculto por defecto
+        # --- FIN DE LA MODIFICACIÓN ---
+        # --- INICIO DE LA MODIFICACIÓN: Loader Overlay ---
+        self.loadingOverlay = self.ui.findChild(QFrame, 'loadingOverlay')
+        self.loadingLabel = self.ui.findChild(QLabel, 'loadingLabel')
+        self.hide_loader() # Asegurarse de que esté oculto al inicio
         # --- FIN DE LA MODIFICACIÓN ---
 
     def _connect_signals(self):
@@ -395,7 +284,7 @@ class MainWindow(QMainWindow):
 
         # --- INICIO DE LA MODIFICACIÓN: Lógica de diálogo modal para DATOS_MEDIDOR ---
         current_state = self.state_manager.get_current_state_name()
-        if from_button and current_state == 'DATOS_MEDIDOR_MENU' and command in ['1', '2', '3', '4']:
+        if current_state == 'DATOS_MEDIDOR_MENU' and command in ['1', '2', '3', '4'] and not self.sequence_manager.command_queue:
             # Mapeo de comandos a títulos y etiquetas para el diálogo
             dialog_map = {
                 '1': ("Entrar Valor X", "Nuevo valor para X [r/kWh]:"),
@@ -449,6 +338,7 @@ class MainWindow(QMainWindow):
         Construye y ejecuta la secuencia de calibración.
         :param params: Puede ser un string (valor de X) o un dict con {constante, k, ds, di}.
         """
+        self.show_loader()
         self._set_ui_enabled(False)
 
         if isinstance(params, dict): # Calibración desde el gestor de modelos
@@ -473,6 +363,7 @@ class MainWindow(QMainWindow):
     @Slot(str)
     def _on_sequence_finished(self, message):
         """Se ejecuta cuando el SequenceManager ha terminado todos sus comandos."""
+        self.hide_loader()
         self._set_ui_enabled(True)
         self.etiquetaEstado.setText(message)
 
@@ -488,7 +379,9 @@ class MainWindow(QMainWindow):
     @Slot(str)
     def display_data(self, raw_data):
         """Muestra la data RAW y realiza el parsing de datos Medidos."""
-        # 1. Acumulamos los datos en el emulador de pantalla.
+        # 1. Mostramos el loader solo si no estamos en la vista de calibración.
+        if self.state_manager.get_current_state_name() != 'CALIBRAR_TABLE_VIEW':
+            self.show_loader()
         self.screen_emulator.process_data(raw_data)
         # 2. Reiniciamos el temporizador. La lógica de procesamiento solo se ejecutará
         #    cuando los datos dejen de llegar por un breve momento.
@@ -528,7 +421,11 @@ class MainWindow(QMainWindow):
         current_state = self.state_manager.get_current_state_name()
 
         # Visibilidad del título principal en el modo gráfico
-        if current_state == 'MAIN_MENU':
+        state_config = self.state_manager.config['states'].get(current_state, {})
+        title_for_state = state_config.get('title')
+
+        if title_for_state:
+            self.graphicViewTitle.setText(title_for_state)
             self.graphicViewTitle.setVisible(True)
         else:
             self.graphicViewTitle.setVisible(False)
@@ -545,10 +442,19 @@ class MainWindow(QMainWindow):
         else:
             self.datosMedidorHeader.setVisible(False)
 
+        # Visibilidad de la cabecera de Calibración
+        if current_state in ['CALIBRAR_MENU', 'CALIBRAR_TABLE_VIEW']:
+            self.calibrationHeader.setVisible(True)
+            # Actualizar valores en la cabecera de calibración
+            self.valorCalibPercent.setText(self.state_manager.parsed_values.get('calib_percent', '---'))
+            indicac_text = self.state_manager.parsed_values.get('calib_indicac', '---')
+            self.valorCalibIndicac.setText(f"INDICAC.: {indicac_text}")
+        else:
+            self.calibrationHeader.setVisible(False)
+
         # Visibilidad de la tabla de calibración
         if current_state == 'CALIBRAR_TABLE_VIEW':
             self.calibration_table_view.setVisible(True)
-            self.customGraphicLabel.setVisible(False) # Ocultar texto genérico
             # Obtener di y ds del state_manager
             di = self.state_manager.parsed_values.get('di', '---')
             ds = self.state_manager.parsed_values.get('ds', '---')
@@ -560,10 +466,22 @@ class MainWindow(QMainWindow):
         else:
             # Si no estamos en esa vista, nos aseguramos de que esté oculta
             self.calibration_table_view.setVisible(False)
-            self.customGraphicLabel.setVisible(True) # Mostrar texto genérico
             # Restaurar el título si es necesario (esto podría necesitar más lógica)
         # --- FIN DE LA MODIFICACIÓN ---
         # --- FIN DE LA MODIFICACIÓN ---
+        if current_state != 'CALIBRAR_TABLE_VIEW':
+            self.hide_loader() # Ocultar el loader después de procesar todo
+
+    def show_loader(self):
+        """Muestra el panel de carga superpuesto."""
+        self.loadingLabel.setText("Cargando...")
+        self.loadingOverlay.setVisible(True)
+        self.loadingOverlay.raise_()
+
+    def hide_loader(self):
+        """Oculta el panel de carga."""
+        self.loadingOverlay.setVisible(False)
+
 
     @Slot(str)
     def display_error(self, message):
@@ -580,9 +498,8 @@ class MainWindow(QMainWindow):
         # Y NO estamos en un modo de entrada de datos.
         if Qt.Key.Key_0 <= key <= Qt.Key.Key_9 and self.campoComando and not self.campoComando.hasFocus() and current_state not in ['CALIBRAR_DATA_ENTRY']:
             command = str(key - Qt.Key.Key_0)
-            self.command_to_statemanager.emit(command) # Notificar al StateManager
-            # Añadimos esta línea para que el comando también se envíe al dispositivo
-            self.send_to_worker.emit(command)
+            # Centralizamos el envío de comandos a través de un único método
+            self.send_command(command)
         # --- INICIO DE LA MODIFICACIÓN: Navegación por campos ---
         # Si estamos en modo de entrada de datos de calibración, las flechas y Enter tienen funciones especiales.
         elif current_state in ['CALIBRAR_DATA_ENTRY']:
@@ -605,6 +522,14 @@ class MainWindow(QMainWindow):
         # --- FIN DE LA MODIFICACIÓN ---
         else:
             super().keyPressEvent(event)
+
+    def resizeEvent(self, event):
+        """Se llama cada vez que la ventana cambia de tamaño."""
+        super().resizeEvent(event)
+        # Centrar el overlay de carga
+        overlay_size = self.loadingOverlay.size()
+        center_point = self.rect().center()
+        self.loadingOverlay.move(center_point.x() - overlay_size.width() / 2, center_point.y() - overlay_size.height() / 2)
 
     def closeEvent(self, event):
         """Asegura que el worker y el hilo terminen al cerrar la ventana."""

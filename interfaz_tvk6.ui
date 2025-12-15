@@ -609,6 +609,74 @@
             </widget>
            </item>
            <item>
+            <widget class="QFrame" name="calibrationHeader">
+             <property name="frameShape">
+              <enum>QFrame::Shape::StyledPanel</enum>
+             </property>
+             <property name="frameShadow">
+              <enum>QFrame::Shadow::Raised</enum>
+             </property>
+             <layout class="QHBoxLayout" name="calibrationHeaderLayout">
+              <item>
+               <spacer name="horizontalSpacer_3">
+                <property name="orientation">
+                 <enum>Qt::Orientation::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QLabel" name="valorCalibPercent">
+                <property name="font">
+                 <font>
+                  <pointsize>14</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">color: #17a2b8; font-weight: bold;</string>
+                </property>
+                <property name="text">
+                 <string>xx.x o/o</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="valorCalibIndicac">
+                <property name="font">
+                 <font>
+                  <pointsize>14</pointsize>
+                 </font>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">color: #6f42c1; font-weight: bold;</string>
+                </property>
+                <property name="text">
+                 <string>INDICAC.: ---</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_4">
+                <property name="orientation">
+                 <enum>Qt::Orientation::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
             <widget class="QFrame" name="customGraphicFrame">
              <property name="frameShape">
               <enum>QFrame::Shape::StyledPanel</enum>
@@ -617,16 +685,6 @@
               <enum>QFrame::Shadow::Raised</enum>
              </property>
              <layout class="QVBoxLayout" name="customGraphicLayout">
-              <item>
-               <widget class="QLabel" name="label">
-                <property name="text">
-                 <string>(Área para widgets personalizados por pantalla)</string>
-                </property>
-                <property name="alignment">
-                 <set>Qt::AlignmentFlag::AlignCenter</set>
-                </property>
-               </widget>
-              </item>
              </layout>
             </widget>
            </item>
@@ -708,14 +766,6 @@
         </widget>
        </item>
        <item>
-        <widget class="QGroupBox" name="groupBoxMenuDinamico">
-         <property name="title">
-          <string>Comandos Rápidos</string>
-         </property>
-         <layout class="QVBoxLayout" name="dynamicButtonVBoxLayout"/>
-        </widget>
-       </item>
-       <item>
         <spacer name="verticalSpacer">
          <property name="orientation">
           <enum>Qt::Orientation::Vertical</enum>
@@ -733,6 +783,45 @@
     </layout>
    </item>
   </layout>
+  <widget class="QFrame" name="loadingOverlay">
+   <property name="geometry">
+    <rect>
+     <x>370</x>
+     <y>290</y>
+     <width>211</width>
+     <height>71</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">
+        QFrame {
+          background-color: rgba(0, 0, 0, 0.7);
+          border-radius: 10px;
+        }
+      </string>
+   </property>
+   <property name="frameShape">
+    <enum>QFrame::Shape::StyledPanel</enum>
+   </property>
+   <property name="frameShadow">
+    <enum>QFrame::Shadow::Raised</enum>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout_2">
+    <item>
+     <widget class="QLabel" name="loadingLabel">
+      <property name="styleSheet">
+       <string notr="true">color: white; background-color: transparent; border: none;</string>
+      </property>
+      <property name="text">
+       <string>Cargando...</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignCenter</set>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
  </widget>
  <resources/>
  <connections/>

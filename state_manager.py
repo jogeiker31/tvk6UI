@@ -18,7 +18,7 @@ class StateManager(QObject): # Inherit from QObject
         self.current_state = 'INIT'
         self._load_config(config_file)
         self.history = [] # Pila para el historial de navegación
-        self.parsed_values = {'X': '---', 'K': '---', 'M': '---', 'T': '---', 'U1': '---', 'I1': '---', 'di': '---', 'ds': '---'}
+        self.parsed_values = {'X': '---', 'K': '---', 'M': '---', 'T': '---', 'U1': '---', 'I1': '---', 'di': '---', 'ds': '---', 'calib_percent': '---', 'calib_indicac': '---'}
         self.menu_manager.update_menu_config(None) # Iniciar sin menú
 
     def _load_config(self, config_file):
@@ -70,6 +70,19 @@ class StateManager(QObject): # Inherit from QObject
                     i1_val = line_6[72:80].strip()
                     if i1_val:
                         self.parsed_values['I1'] = i1_val
+            
+            # Parseo de datos del header de calibración
+            # La expresión se ajusta para ser más específica a los formatos "xx.x o/o" y "xx.xx o/oo".
+            # Busca un número con 1 o 2 decimales, seguido de espacios, y luego "o/o" o "o/oo".
+            # Se busca el texto literal "xx.x" o "xx.xx" ya que es lo que muestra el dispositivo como placeholder.
+            # El patrón ahora busca "xx." seguido de una o dos "x", luego espacios, y luego "o/o" o "o/oo".
+            percent_match = re.search(r'(xx\.x{1,2}\s+o/o+)', screen_text)
+            if percent_match:
+                self.parsed_values['calib_percent'] = percent_match.group(1)
+
+            indicac_match = re.search(r'INDICAC\.:\s*(MED\.\s*(?:CONTINUA|UNICA))', screen_text)
+            if indicac_match:
+                self.parsed_values['calib_indicac'] = indicac_match.group(1)
 
         if measurement_panel:
             measurement_panel.update_display(self.parsed_values)
