@@ -551,6 +551,11 @@ class MainWindow(QMainWindow):
             command = str(key - Qt.Key.Key_0)
             # Centralizamos el envío de comandos a través de un único método
             self.send_command(command)
+        # --- INICIO DE LA MODIFICACIÓN: Atajo global para Enter/Return ---
+        elif key in [Qt.Key.Key_Return, Qt.Key.Key_Enter] and self.campoComando and not self.campoComando.hasFocus():
+            # Si se presiona Enter y no estamos en un campo de texto, enviamos el comando de retorno ('esc' se mapea a \r)
+            self.send_command('esc')
+        # --- FIN DE LA MODIFICACIÓN ---
         # --- INICIO DE LA MODIFICACIÓN: Navegación por campos ---
         # Si estamos en modo de entrada de datos de calibración, las flechas y Enter tienen funciones especiales.
         elif current_state in ['CALIBRAR_DATA_ENTRY']:
