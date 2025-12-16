@@ -26,6 +26,8 @@ from ui_input_dialog import InputDialog
 from sequence_manager import SequenceManager
 from screen_emulator import ScreenEmulator
 from settings_dialog import SettingsDialog
+from certificate_dialog import CertificateDialog
+from pdf_generator import generate_certificate_pdf
 from themes import DARK_THEME, LIGHT_THEME
 
 class MainWindow(QMainWindow):
@@ -54,6 +56,9 @@ class MainWindow(QMainWindow):
         
         # 1. Inicializar el gestor de la base de datos
         self.db_manager = DatabaseManager()
+        
+        # Almacenar datos del modelo para el certificado
+        self.current_model_data_for_cert = {}
 
         self._connect_signals()
 
@@ -348,6 +353,29 @@ class MainWindow(QMainWindow):
                 # El SerialWorker ya añade un 'enter' (\r) al final de un envío de múltiples caracteres,
                 # por lo que no necesitamos enviar 'enter' explícitamente aquí.
         else:
+            # --- INICIO DE LA MODIFICACIÓN: Lógica para imprimir certificado ---
+            if current_state == 'CALIBRAR_TABLE_VIEW' and command == '5':
+                # 1. Recopilar datos para pre-rellenar el formulario
+                prefill_data = {
+                    'modelo': self.current_model_data_for_cert.get('nombre', 'N/A'),
+                    'constante': self.state_manager.parsed_values.get('X', '---'),
+                    'tension': self.state_manager.parsed_values.get('U1', '---'),
+                    'intensidad': self.state_manager.parsed_values.get('I1', '---')
+                }
+                
+                # 2. Abrir el diálogo del certificado
+                dialog = CertificateDialog(prefill_data, self)
+                if dialog.exec() == CertificateDialog.Accepted:
+                    certificate_data = dialog.get_data()
+                    
+                    # 3. Obtener los valores de la tabla de calibración
+                    table_values = self.calibration_table_view.get_all_values()
+                    
+                    # 4. Generar el PDF
+                    generate_certificate_pdf(self, certificate_data, table_values)
+                return # Salimos para no ejecutar la lógica de envío normal
+            # --- FIN DE LA MODIFICACIÓN ---
+
             # Lógica de envío normal para todos los demás comandos y estados
             self.monitorSalida.appendPlainText(f"-> CMD: '{command}'")
             self.command_to_statemanager.emit(command) # Notificar al StateManager
@@ -386,12 +414,20 @@ class MainWindow(QMainWindow):
             k_value = str(params['k'])
             ds_value = str(params['ds'])
             di_value = str(params['di'])
+            # Guardar datos del modelo para el futuro certificado
+            self.current_model_data_for_cert = {
+                'nombre': params['nombre'],
+                'constante': x_value,
+                'k': k_value,
+                'ds': ds_value,
+                'di': di_value
+            }
             self.etiquetaEstado.setText(f"Cargando calibración con modelo (X={x_value}, K={k_value})...")
 
         # Secuencia de calibración actualizada
         # Se eliminan los 'enter' explícitos después de x_value y k_value.
         # El SerialWorker ya envía un \r después de transmitir un valor de múltiples caracteres.
-        commands = ['reset', '1', '1', '1', x_value, '2', k_value, 'esc', 'esc', '2', '3', "4", " ", " ", " ", ds_value, di_value, "enter", '1']
+        commands = ['reset', '1', '1', '1', x_value, '2', k_value, 'esc', 'esc', '2', '3', "4", " ", " ", " ", ds_value, di_value," "," ", "enter", '1']
         self.sequence_manager.start_sequence(commands)
 
     @Slot(object)
@@ -510,10 +546,10 @@ class MainWindow(QMainWindow):
             di = self.state_manager.parsed_values.get('di', '---')
             ds = self.state_manager.parsed_values.get('ds', '---')
             self.calibration_table_view.update_values(screen_text, di, ds)
-            # --- INICIO DE LA MODIFICACIÓN: Dibujar botones del menú de calibración ---
-            # Forzamos que se dibujen los botones del menú de calibración debajo de la tabla.
-            self.menu_manager.parse_and_draw(screen_text, force_config_name='CALIBRAR_MENU')
-            # --- FIN DE LA MODIFICACIÓN ---
+            # Cuando estamos en la vista de tabla, el StateManager ya sabe cuál es el
+            # estado actual. Simplemente le pedimos al MenuManager que dibuje los botones
+            # correspondientes a este estado (CALIBRAR_TABLE_VIEW).
+            self.menu_manager.parse_and_draw(screen_text)
         else:
             # Si no estamos en esa vista, nos aseguramos de que esté oculta
             self.calibration_table_view.setVisible(False)

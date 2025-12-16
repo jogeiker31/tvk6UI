@@ -62,7 +62,13 @@
     "CALIBRAR_TABLE_VIEW": {
       "title": "Tabla de Calibración",
       "detection_keywords": ["lqqqqqqwqqqqqq", "mqqqqqqvqqqqqq"],
-      "buttons": []
+      "buttons": [
+        { "number": "1", "text": "COMIENZO" },
+        { "number": "2", "text": "x.x   x.xx" },
+        { "number": "3", "text": "CONT/UNICA" },
+        { "number": "4", "text": "DATOS" },
+        { "number": "5", "text": "IMPRIMIR CERTIFICADO" }
+      ]
     },
     "CALIBRAR_DATA_ENTRY": {
       "title": "Calibración (Entrada de Datos)",
@@ -102,9 +108,3 @@
     }
   }
 }
-
-
-
-
-
-

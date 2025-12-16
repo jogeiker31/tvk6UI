@@ -234,5 +234,5 @@ class ModelManagerDialog(QDialog):
         model_data = self.get_form_data()
         if model_data:
             nombre, constante, k, ds, di = model_data
-            self.start_calibration_requested.emit({'constante': constante, 'k': k, 'ds': ds, 'di': di})
+            self.start_calibration_requested.emit({'nombre': nombre, 'constante': constante, 'k': k, 'ds': ds, 'di': di})
             self.accept() # Cierra el diálogo de gestión de modelos

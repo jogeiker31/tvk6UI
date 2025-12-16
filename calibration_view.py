@@ -97,3 +97,10 @@ class CalibrationTableView(QWidget):
                             self.cells[grid_row][grid_col].setStyleSheet("background-color: #dc3545; color: white; font-weight: bold; font-size: 11pt; border-radius: 4px;")
                     except ValueError:
                         pass
+
+    def get_all_values(self):
+        """Devuelve una lista de listas con todos los valores de texto de la tabla."""
+        all_values = []
+        for row_cells in self.cells:
+            all_values.append([cell.text() for cell in row_cells])
+        return all_values
