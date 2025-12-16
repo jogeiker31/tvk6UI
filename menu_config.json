@@ -3,20 +3,19 @@
     "INIT": {},
     "MAIN_MENU": {
       "title": "Menú Principal",
-      "detection_keywords": ["LANDIS & GYR", "ENTRADAS", "ESTADIST."],
+      "detection_keywords": ["LANDIS & GYR", "ENTRADAS", "CALIBRAR"],
       "buttons": [
         { "number": "1", "text": "ENTRADAS" },
         { "number": "2", "text": "CALIBRAR" },
-        { "number": "3", "text": "CONTROL" },
-        { "number": "4", "text": "PBA SERIE" },
-        { "number": "5", "text": "ESTADIST." }
+        { "number": "3", "text": "CONTROL", "enabled": false },
+        { "number": "4", "text": "PBA SERIE", "enabled": false },
+        { "number": "5", "text": "ESTADIST.", "enabled": false }
+
       ],
       "transitions": {
         "1": { "target": "ENTRADAS_MENU", "clear_screen": true },
-        "2": { "target": "CALIBRAR_MENU", "clear_screen": true },
-        "3": { "target": "CERTIFICACION_MENU", "clear_screen": true },
-        "4": { "target": "PBA_SERIE_MENU", "clear_screen": true },
-        "5": { "target": "ESTADISTICAS_MENU", "clear_screen": true }
+        "2": { "target": "CALIBRAR_MENU", "clear_screen": true }
+    
       }
     },
     "ENTRADAS_MENU": {
@@ -25,9 +24,9 @@
       "buttons": [
         { "number": "1", "text": "DAT.MEDID." },
         { "number": "2", "text": "DAT.SYST." },
-        { "number": "3", "text": "TIT.PROTOC" },
-        { "number": "4", "text": "IMPRIMIR" },
-        { "number": "5", "text": "FIN PROTOC" }
+        { "number": "3", "text": "TIT.PROTOC" , "enabled": false},
+        { "number": "4", "text": "IMPRIMIR", "enabled": false },
+        { "number": "5", "text": "FIN PROTOC", "enabled": false }
       ],
       "transitions": {
         "1": { "target": "DATOS_MEDIDOR_MENU", "clear_screen": false },
@@ -42,7 +41,7 @@
         { "number": "2", "text": "K" },
         { "number": "3", "text": "M" },
         { "number": "4", "text": "T [min]" },
-        { "number": "5", "text": "U1 [V]" }
+        { "number": "5", "text": "U1 [V]" , "enabled": false}
       ]
     },
     "CALIBRAR_MENU": {

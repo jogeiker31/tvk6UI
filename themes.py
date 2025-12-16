@@ -63,6 +63,12 @@ QPushButton:pressed {
     background-color: #444;
 }
 
+QPushButton:disabled {
+    background-color: #404040; /* Un gris más oscuro */
+    color: #1a1a1a; /* Un color negro para que se vea apagado */
+    border-color: #505050;
+}
+
 /* Estilos específicos de botones */
 QPushButton#btnGestionarModelos { background-color: #28a745; }
 QPushButton#btnConfiguracion { background-color: #6c757d; }

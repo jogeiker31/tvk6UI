@@ -82,9 +82,15 @@ class MenuManager:
         if menu_matches and menu_matches != self.current_menu_options:
             self.current_menu_options = menu_matches
             self.clear_menu()
-            for number, text in menu_matches:
+            # Usamos la configuración completa de botones del JSON
+            for btn_config in config_to_use.get('buttons', []):
+                number = btn_config.get("number")
+                text = btn_config.get("text")
                 # Crear botón para la vista gráfica
                 graphic_button = self.create_button(number, text.strip(), is_graphic_mode=True)
+                # El botón se habilita o deshabilita según la propiedad 'enabled' en el JSON.
+                # Si 'enabled' no está presente, se asume 'True' por defecto.
+                graphic_button.setEnabled(btn_config.get('enabled', True))
                 # Insertamos antes del espaciador final para mantener los botones centrados
                 self.graphic_menu_layout.insertWidget(self.graphic_menu_layout.count() - 1, graphic_button)
                 self.graphic_buttons.append(graphic_button)

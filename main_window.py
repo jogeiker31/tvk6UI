@@ -585,8 +585,13 @@ class MainWindow(QMainWindow):
         # Y NO estamos en un modo de entrada de datos.
         if Qt.Key.Key_0 <= key <= Qt.Key.Key_9 and self.campoComando and not self.campoComando.hasFocus() and current_state not in ['CALIBRAR_DATA_ENTRY']:
             command = str(key - Qt.Key.Key_0)
-            # Centralizamos el envío de comandos a través de un único método
-            self.send_command(command)
+            # --- INICIO DE LA MODIFICACIÓN: Validar comando antes de enviar ---
+            # Consultamos al StateManager si el comando es válido para el estado actual.
+            current_config = self.state_manager.config['states'].get(current_state, {})
+            if command in current_config.get('transitions', {}):
+                # Solo enviamos el comando si existe una transición válida para él.
+                self.send_command(command)
+            # --- FIN DE LA MODIFICACIÓN ---
         # --- INICIO DE LA MODIFICACIÓN: Atajo global para Enter/Return ---
         elif key in [Qt.Key.Key_Return, Qt.Key.Key_Enter] and self.campoComando and not self.campoComando.hasFocus():
             # Si se presiona Enter y no estamos en un campo de texto, enviamos el comando de retorno ('esc' se mapea a \r)
