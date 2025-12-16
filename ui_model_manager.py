@@ -145,8 +145,8 @@ class ModelManagerDialog(QDialog):
         self.name_input.setText(self.table.item(selected_row, 1).text())
         self.constante_input.setText(self.table.item(selected_row, 2).text())
         self.k_input.setText(self.table.item(selected_row, 3).text())
-        self.ds_input.setText(self.table.item(selected_row, 4).text())
-        self.di_input.setText(self.table.item(selected_row, 5).text())
+        self.di_input.setText(self.table.item(selected_row, 4).text())
+        self.ds_input.setText(self.table.item(selected_row, 5).text())
 
         # Actualizar y mostrar el panel de calibración
         nombre = self.name_input.text()

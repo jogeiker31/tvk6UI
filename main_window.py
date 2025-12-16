@@ -427,7 +427,7 @@ class MainWindow(QMainWindow):
         # Secuencia de calibración actualizada
         # Se eliminan los 'enter' explícitos después de x_value y k_value.
         # El SerialWorker ya envía un \r después de transmitir un valor de múltiples caracteres.
-        commands = ['reset', '1', '1', '1', x_value, '2', k_value, 'esc', 'esc', '2', '3', "4", " ", " ", " ", ds_value, di_value," "," ", "enter", '1']
+        commands = ['reset', '1', '1', '1', x_value, '2', k_value, 'esc', 'esc', '2', '3', "4", " ", " ", " ", di_value, ds_value," "," ", "enter", '1']
         self.sequence_manager.start_sequence(commands)
 
     @Slot(object)
