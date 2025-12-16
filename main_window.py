@@ -587,8 +587,13 @@ class MainWindow(QMainWindow):
             command = str(key - Qt.Key.Key_0)
             # --- INICIO DE LA MODIFICACIÓN: Validar comando antes de enviar ---
             # Consultamos al StateManager si el comando es válido para el estado actual.
-            current_config = self.state_manager.config['states'].get(current_state, {})
-            if command in current_config.get('transitions', {}):
+            current_config = self.state_manager.config['states'].get(current_state, {})            
+            # Un comando es válido si tiene una transición O si existe un botón habilitado con ese número.
+            has_transition = command in current_config.get('transitions', {})
+            is_enabled_button = any(
+                btn.get('number') == command and btn.get('enabled', True) for btn in current_config.get('buttons', [])
+            )
+            if has_transition or is_enabled_button:
                 # Solo enviamos el comando si existe una transición válida para él.
                 self.send_command(command)
             # --- FIN DE LA MODIFICACIÓN ---

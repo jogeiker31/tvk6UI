@@ -31,9 +31,19 @@ class CertificateDialog(QDialog):
         # Datos a rellenar por el usuario
         self.calibrador_input = QLineEdit()
         self.temperatura_input = QLineEdit()
+        self.modelo_input = QLineEdit() # Usamos un QLineEdit para que sea editable
 
-        # Datos pre-rellenados (no editables)
-        self.modelo_label = QLabel(prefill_data.get('modelo', 'No especificado'))
+        # Lógica para el campo de modelo:
+        # Si el modelo viene pre-rellenado y no es 'N/A', lo mostramos y lo bloqueamos.
+        # Si no, dejamos el campo editable para que el usuario lo ingrese.
+        model_name = prefill_data.get('modelo', 'N/A')
+        if model_name and model_name != 'N/A':
+            self.modelo_input.setText(model_name)
+            self.modelo_input.setReadOnly(True)
+        else:
+            self.modelo_input.setPlaceholderText("Ingrese el modelo del medidor")
+            self.modelo_input.setReadOnly(False)
+
         self.constante_label = QLabel(prefill_data.get('constante', '---'))
         self.tension_label = QLabel(prefill_data.get('tension', '---'))
         self.intensidad_label = QLabel(prefill_data.get('intensidad', '---'))
@@ -43,7 +53,7 @@ class CertificateDialog(QDialog):
         form_layout.addRow("Hora:", self.hora_label)
         form_layout.addRow("<b>Calibrador:</b>", self.calibrador_input)
         form_layout.addRow("Temperatura [°C] (Opcional):", self.temperatura_input)
-        form_layout.addRow("Modelo Medidor:", self.modelo_label)
+        form_layout.addRow("Modelo Medidor:", self.modelo_input)
         form_layout.addRow("Constante Medidor (X):", self.constante_label)
         form_layout.addRow("Tensión Nominal (U1):", self.tension_label)
         form_layout.addRow("Intensidad Nominal (I1):", self.intensidad_label)
@@ -64,7 +74,7 @@ class CertificateDialog(QDialog):
             "hora": self.hora_label.text(),
             "calibrador": self.calibrador_input.text(),
             "temperatura": self.temperatura_input.text(),
-            "modelo": self.modelo_label.text(),
+            "modelo": self.modelo_input.text(),
             "constante": self.constante_label.text(),
             "tension": self.tension_label.text(),
             "intensidad": self.intensidad_label.text()
