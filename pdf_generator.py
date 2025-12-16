@@ -12,6 +12,7 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.units import inch
 from reportlab.lib.pagesizes import letter
 from PySide6.QtWidgets import QFileDialog, QMessageBox
+from PySide6.QtCore import QStandardPaths
 
 def generate_certificate_pdf(parent, certificate_data, table_values):
     """
@@ -21,14 +22,21 @@ def generate_certificate_pdf(parent, certificate_data, table_values):
     :param certificate_data: Un diccionario con los datos del formulario del certificado.
     :param table_values: Una lista de listas con los valores de la tabla de calibración.
     """
-    # 1. Pedir al usuario dónde guardar el archivo
-    default_filename = f"Certificado_{certificate_data.get('modelo', 'Medidor')}_{certificate_data.get('fecha', '').replace('/', '-')}.pdf"
+    # 1. Definir la ruta de guardado por defecto en Documentos/certificados_calibracion
+    docs_path = QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation)
+    save_dir = os.path.join(docs_path, "certificados_calibracion")
+    os.makedirs(save_dir, exist_ok=True) # Crear la carpeta si no existe
+
+    # 2. Construir el nombre de archivo por defecto
     fecha_str = certificate_data.get('fecha', '').replace('/', '-')
     # Limpiamos la hora para que sea un nombre de archivo válido (ej: 04:30 PM -> 0430PM)
     hora_str = certificate_data.get('hora', '').replace(':', '').replace(' ', '')
     modelo_str = certificate_data.get('modelo', 'Medidor')
     default_filename = f"Certificado_{modelo_str}_{fecha_str}_{hora_str}.pdf"
-    file_path, _ = QFileDialog.getSaveFileName(parent, "Guardar Certificado PDF", default_filename, "PDF Files (*.pdf)")
+    default_path = os.path.join(save_dir, default_filename)
+
+    # 3. Pedir al usuario dónde guardar el archivo, usando la ruta por defecto
+    file_path, _ = QFileDialog.getSaveFileName(parent, "Guardar Certificado PDF", default_path, "PDF Files (*.pdf)")
 
     if not file_path:
         return # El usuario canceló
@@ -61,7 +69,14 @@ def generate_certificate_pdf(parent, certificate_data, table_values):
         )
 
         # --- Títulos ---
-        story.append(Paragraph("TVK6", title_style))
+        logo_path = 'logo.png'
+        if os.path.exists(logo_path):
+            logo = Image(logo_path, width=3*inch, height=0.75*inch) # Ajustar tamaño según sea necesario
+            logo.hAlign = 'CENTER'
+            story.append(logo)
+        else:
+            # Si no se encuentra el logo, se muestra el texto como antes
+            story.append(Paragraph("TVK6", title_style))
         story.append(Paragraph("Calibración de Medidores", subtitle_style))
         story.append(Spacer(1, 0.25 * inch))
 
@@ -77,7 +92,7 @@ def generate_certificate_pdf(parent, certificate_data, table_values):
              Paragraph(f"<b>Constante (X):</b><br/>{certificate_data['constante']}", styles['Normal']),
              ''] # Celda vacía para la tercera columna
         ]
-        header_table = Table(data_header, colWidths=[2.15*inch, 2.15*inch, 2.15*inch])
+        header_table = Table(data_header, colWidths=[2.16*inch, 2.16*inch, 2.16*inch])
         header_table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
