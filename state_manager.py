@@ -6,7 +6,19 @@ y la configuración de los menús.
 """
 import json
 import re
+import os
+import sys
 from PySide6.QtCore import QObject, Signal # Import QObject and Signal
+
+def resource_path(relative_path):
+    """ Obtiene la ruta absoluta al recurso, funciona para desarrollo y para PyInstaller """
+    try:
+        # PyInstaller crea una carpeta temporal y almacena la ruta en _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 class StateManager(QObject): # Inherit from QObject
     """Gestiona la máquina de estados de la aplicación."""
@@ -16,7 +28,7 @@ class StateManager(QObject): # Inherit from QObject
         super().__init__() # ¡Llamada crucial al constructor de QObject!
         self.menu_manager = menu_manager
         self.current_state = 'INIT'
-        self._load_config(config_file)
+        self._load_config(resource_path(config_file))
         self.history = [] # Pila para el historial de navegación
         self.parsed_values = {
             'X': '---', 'K': '---', 'M': '---', 'T': '---', 'U1': '---', 'I1': '---', 

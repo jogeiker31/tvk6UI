@@ -11,6 +11,17 @@ from PySide6.QtGui import QPixmap
 from pdf_generator import generate_certificate_pdf
 from themes import DARK_THEME, LIGHT_THEME
 
+import sys
+
+def resource_path(relative_path):
+    """ Obtiene la ruta absoluta al recurso, funciona para desarrollo y para PyInstaller """
+    try:
+        # PyInstaller crea una carpeta temporal y almacena la ruta en _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 class HistoryDetailDialog(QDialog):
     """
     Muestra los detalles de un registro de calibración en un formato similar al certificado.
@@ -34,7 +45,7 @@ class HistoryDetailDialog(QDialog):
         logo_container = QHBoxLayout()
         logo_container.addStretch()
         logo_label = QLabel()
-        logo_path = 'logo.png' # Asumimos que el logo está disponible
+        logo_path = resource_path('logo.png') # Asumimos que el logo está disponible
         if os.path.exists(logo_path):
             pixmap = QPixmap(logo_path)
             logo_label.setPixmap(pixmap.scaled(250, 60, Qt.KeepAspectRatio, Qt.SmoothTransformation))
