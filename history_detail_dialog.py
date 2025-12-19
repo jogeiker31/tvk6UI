@@ -3,9 +3,12 @@ Módulo para el diálogo de detalles del historial de calibración.
 """
 import json
 import os
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QGridLayout, QLabel, QFrame, QGroupBox, QHBoxLayout)
+from PySide6.QtWidgets import (QDialog, QVBoxLayout, QGridLayout, QLabel, QFrame, QGroupBox, QHBoxLayout, QPushButton)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
+
+# Importaciones de nuestros módulos
+from pdf_generator import generate_certificate_pdf
 from themes import DARK_THEME, LIGHT_THEME
 
 class HistoryDetailDialog(QDialog):
@@ -52,15 +55,21 @@ class HistoryDetailDialog(QDialog):
         header_layout.addWidget(QLabel(f"<b>Fecha:</b><br>{self.calibration_data.get('fecha', 'N/A')}"), 0, 0)
         header_layout.addWidget(QLabel(f"<b>Hora:</b><br>{self.calibration_data.get('hora', 'N/A')}"), 0, 1)
         header_layout.addWidget(QLabel(f"<b>Calibrador:</b><br>{self.calibration_data.get('calibrador', 'N/A')}"), 0, 2)
+        
         # Fila 2
         header_layout.addWidget(QLabel(f"<b>Modelo:</b><br>{self.calibration_data.get('modelo', 'N/A')}"), 1, 0)
         header_layout.addWidget(QLabel(f"<b>Constante (X):</b><br>{self.calibration_data.get('constante', 'N/A')}"), 1, 1)
-        header_layout.addWidget(QLabel(f"<b>Tensión (U1):</b><br>{self.calibration_data.get('tension', 'N/A')}"), 1, 2)
-        # Fila 3
-        header_layout.addWidget(QLabel(f"<b>Intensidad (I1):</b><br>{self.calibration_data.get('intensidad', 'N/A')}"), 2, 0)
-        header_layout.addWidget(QLabel(f"<b>Límite Inferior (di):</b><br>{self.calibration_data.get('di', 'N/A')}"), 2, 1)
-        header_layout.addWidget(QLabel(f"<b>Límite Superior (ds):</b><br>{self.calibration_data.get('ds', 'N/A')}"), 2, 2)
+        temp_val = self.calibration_data.get('temperatura')
+        temp_str = f"{temp_val} °C" if temp_val and temp_val != 'N/A' else 'N/A'
+        header_layout.addWidget(QLabel(f"<b>Temperatura:</b><br>{temp_str}"), 1, 2)
 
+        # Fila 3
+        header_layout.addWidget(QLabel(f"<b>Tensión (U1):</b><br>{self.calibration_data.get('tension', 'N/A')}"), 2, 0)
+        header_layout.addWidget(QLabel(f"<b>Intensidad (I1):</b><br>{self.calibration_data.get('intensidad', 'N/A')}"), 2, 1)
+
+        # Fila 4
+        header_layout.addWidget(QLabel(f"<b>Límite Inferior (di):</b><br>{self.calibration_data.get('di', 'N/A')}"), 3, 0)
+        header_layout.addWidget(QLabel(f"<b>Límite Superior (ds):</b><br>{self.calibration_data.get('ds', 'N/A')}"), 3, 1)
         header_group.setLayout(header_layout)
         main_layout.addWidget(header_group)
 
@@ -105,6 +114,17 @@ class HistoryDetailDialog(QDialog):
         main_layout.addWidget(results_group)
         main_layout.addStretch()
 
+        # 4. Botón para descargar PDF
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        self.download_button = QPushButton("Descargar Certificado (PDF)")
+        self.download_button.setMinimumSize(200, 40)
+        # Estilo explícito para que se vea bien en ambos temas
+        self.download_button.setStyleSheet("background-color: #007bff; color: white; font-weight: bold; border-radius: 5px;")
+        self.download_button.clicked.connect(self.download_pdf)
+        button_layout.addWidget(self.download_button)
+        main_layout.addLayout(button_layout)
+
     def create_styled_value_label(self, value_str, di, ds):
         """Crea un QLabel estilizado para un valor de la tabla."""
         label = QLabel(value_str)
@@ -133,3 +153,20 @@ class HistoryDetailDialog(QDialog):
             self.setStyleSheet(DARK_THEME)
         else:
             self.setStyleSheet(LIGHT_THEME)
+
+    def download_pdf(self):
+        """
+        Prepara los datos y llama a la función de generación de PDF.
+        """
+        # Los datos del certificado son los que ya tenemos en self.calibration_data
+        certificate_data = self.calibration_data
+
+        # La tabla de valores necesita ser parseada desde el JSON
+        try:
+            table_values_json = self.calibration_data.get('tabla_calibracion', '[]')
+            table_values = json.loads(table_values_json)
+        except (json.JSONDecodeError, TypeError):
+            table_values = [] # En caso de error, pasamos una tabla vacía
+
+        # Llamamos a la función que genera el PDF, usando 'self' como padre para los diálogos
+        generate_certificate_pdf(self, certificate_data, table_values)

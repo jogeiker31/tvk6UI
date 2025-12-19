@@ -60,6 +60,7 @@ class DatabaseManager:
             modelo TEXT,
 
             tension TEXT,
+            temperatura TEXT,
 
             intensidad TEXT,
             di TEXT,
@@ -105,12 +106,12 @@ class DatabaseManager:
         if self.conn:
             self.conn.close()
 
-    def save_calibration_data(self, fecha, hora, calibrador, constante, modelo, tension, intensidad, di, ds, tabla_calibracion):
+    def save_calibration_data(self, fecha, hora, calibrador, constante, modelo, tension, intensidad, di, ds, tabla_calibracion, temperatura=None):
         """Guarda los datos de calibración en la tabla 'calibracion_history'."""
-        sql = '''INSERT INTO calibracion_history(fecha, hora, calibrador, constante, modelo, tension, intensidad, di, ds, tabla_calibracion)
-                 VALUES(?,?,?,?,?,?,?,?,?,?)'''
+        sql = '''INSERT INTO calibracion_history(fecha, hora, calibrador, constante, modelo, tension, intensidad, di, ds, tabla_calibracion, temperatura)
+                 VALUES(?,?,?,?,?,?,?,?,?,?,?)'''
         cursor = self.conn.cursor()
-        cursor.execute(sql, (fecha, hora, calibrador, constante, modelo, tension, intensidad, di, ds, tabla_calibracion))
+        cursor.execute(sql, (fecha, hora, calibrador, constante, modelo, tension, intensidad, di, ds, tabla_calibracion, temperatura))
         self.conn.commit()
 
     def get_all_calibration_data(self, fecha=None, calibrador=None, modelo=None):

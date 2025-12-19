@@ -6,11 +6,11 @@ las interacciones y la orquestación del SerialWorker.
 """
 import re
 from collections import deque
-from PySide6.QtWidgets import (QDialog, QMainWindow, QLineEdit, QPlainTextEdit, QLabel, QPushButton, QVBoxLayout, QGroupBox, QMenu, QComboBox, QStackedWidget, QCheckBox, QFrame, QMessageBox,
+from PySide6.QtWidgets import (QDialog, QMainWindow, QLineEdit, QPlainTextEdit, QLabel, QPushButton, QVBoxLayout, QGroupBox, QMenu, QComboBox, QStackedWidget, QCheckBox, QFrame, QMessageBox, QHBoxLayout,
                                QGraphicsDropShadowEffect)
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import Signal, Slot, QThread, Qt, QTimer, QObject
-from PySide6.QtGui import QKeySequence
+from PySide6.QtGui import QKeySequence, QPixmap
 
 # Importaciones de nuestros módulos
 from serial.tools import list_ports
@@ -26,6 +26,7 @@ from ui_input_dialog import InputDialog
 from sequence_manager import SequenceManager
 from screen_emulator import ScreenEmulator
 import json
+import os
 from settings_dialog import SettingsDialog
 from certificate_dialog import CertificateDialog
 from pdf_generator import generate_certificate_pdf
@@ -49,6 +50,28 @@ class MainWindow(QMainWindow):
 
         self.current_theme = 'dark' # Tema por defecto
         self._find_widgets()
+
+        # --- INICIO DE LA MODIFICACIÓN: Añadir logo a la ventana principal ---
+        logo_container = QHBoxLayout()
+        logo_container.addStretch()
+        logo_label = QLabel()
+        logo_path = 'logo.png'
+        if os.path.exists(logo_path):
+            pixmap = QPixmap(logo_path)
+            # Ajustamos el tamaño para que no sea demasiado grande en la UI principal
+            logo_label.setPixmap(pixmap.scaled(200, 50, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        else:
+            logo_label.setText("TVK6") # Fallback si no se encuentra el logo
+            logo_label.setStyleSheet("font-size: 24px; font-weight: bold; color: #00008B;")
+        logo_label.setAlignment(Qt.AlignCenter)
+        logo_container.addWidget(logo_label)
+        logo_container.addStretch()
+
+        # Insertar el layout del logo en la parte superior del layout principal de la ventana.
+        if self.ui.layout():
+            self.ui.layout().insertLayout(0, logo_container)
+        # --- FIN DE LA MODIFICACIÓN ---
+
         # Crear instancias de nuestros gestores de paneles
         self.measurement_panel = MeasurementPanel(self.ui)
         self.menu_manager = MenuManager(self.ui, self)
@@ -112,6 +135,9 @@ class MainWindow(QMainWindow):
 
         # Widgets para el cambio de vista
         self.viewSwitcher = self.ui.findChild(QCheckBox, 'viewSwitcher')
+        # --- INICIO DE LA MODIFICACIÓN: Ocultar checkbox de la ventana principal ---
+        if self.viewSwitcher:
+            self.viewSwitcher.setVisible(False)
         self.graphicViewTitle = self.ui.findChild(QLabel, 'graphicViewTitle')
         self.viewStackedWidget = self.ui.findChild(QStackedWidget, 'viewStackedWidget')
         # --- INICIO DE LA MODIFICACIÓN: Widget para la vista de calibración ---
@@ -170,10 +196,8 @@ class MainWindow(QMainWindow):
         self.btnConfiguracion.clicked.connect(self._open_settings_dialog)
         self.btnGestionarModelos.clicked.connect(self.open_model_manager)
         self.state_manager.clear_screen_requested.connect(self.clear_monitor) # Conectar la nueva señal
-        self.ui.btnHistorial.clicked.connect(self.open_history_view)
-
-        # Conectar el interruptor de vista
-        self.viewSwitcher.toggled.connect(self.switch_view)
+        self.ui.btnHistorial.clicked.connect(self.open_history_view) # Mantenemos el historial
+        # El interruptor de vista ahora se gestiona desde el diálogo de configuración.
 
         # Conectar el gestor de secuencias
         self.sequence_manager.send_command.connect(self.send_command)
@@ -188,8 +212,11 @@ class MainWindow(QMainWindow):
     @Slot()
     def _open_settings_dialog(self):
         """Abre el diálogo de configuración para el cambio de tema."""
-        dialog = SettingsDialog(current_theme=self.current_theme, parent=self)
+        is_console_mode = self.viewStackedWidget.currentIndex() == 0
+        dialog = SettingsDialog(current_theme=self.current_theme, is_console_mode=is_console_mode, parent=self)
         dialog.theme_changed.connect(self._apply_theme)
+        # Conectar la nueva señal para cambiar la vista
+        dialog.view_mode_changed.connect(self.switch_view)
         dialog.exec()
 
     @Slot(str)
@@ -475,6 +502,7 @@ class MainWindow(QMainWindow):
                     constante = certificate_data.get('constante', '---')
                     tension = certificate_data.get('tension', '---')
                     intensidad = certificate_data.get('intensidad', '---')
+                    temperatura = certificate_data.get('temperatura') or 'N/A'
                     
                     # Mantener la obtención de 'di' y 'ds' del state_manager
                     di = self.state_manager.parsed_values.get('di', '---')
@@ -485,7 +513,7 @@ class MainWindow(QMainWindow):
                     table_json = json.dumps(table_values)
  
                     # 5. Guardar los datos en la base de datos
-                    self.db_manager.save_calibration_data(fecha, hora, calibrador, constante, modelo, tension, intensidad, di, ds, table_json)
+                    self.db_manager.save_calibration_data(fecha, hora, calibrador, constante, modelo, tension, intensidad, di, ds, table_json, temperatura)
  
                     # 6. Mostrar mensaje de confirmación
                     QMessageBox.information(
