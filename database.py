@@ -45,8 +45,25 @@ class DatabaseManager:
             cursor.execute(create_table_sql)
             self.conn.commit()
             self.create_history_table()
+            self._migrate_database() # Añadimos la llamada a la migración
         except sqlite3.Error as e:
             print(f"Error al crear la tabla: {e}")
+
+    def _migrate_database(self):
+        """
+        Aplica migraciones a la base de datos para asegurar que el esquema esté actualizado.
+        """
+        try:
+            cursor = self.conn.cursor()
+            # Migración: Añadir columna 'temperatura' a 'calibracion_history' si no existe
+            cursor.execute("PRAGMA table_info(calibracion_history)")
+            columns = [info['name'] for info in cursor.fetchall()]
+            if 'temperatura' not in columns:
+                print("INFO: Aplicando migración -> Añadiendo columna 'temperatura' a la tabla 'calibracion_history'.")
+                cursor.execute("ALTER TABLE calibracion_history ADD COLUMN temperatura TEXT")
+                self.conn.commit()
+        except sqlite3.Error as e:
+            print(f"Error durante la migración de la base de datos: {e}")
 
     def create_history_table(self):
         """Crea la tabla 'calibracion_history' si no existe."""
