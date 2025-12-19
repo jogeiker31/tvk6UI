@@ -6,7 +6,7 @@ las interacciones y la orquestación del SerialWorker.
 """
 import re
 from collections import deque
-from PySide6.QtWidgets import (QMainWindow, QLineEdit, QPlainTextEdit, QLabel, QPushButton, QVBoxLayout, QGroupBox, QMenu, QComboBox, QStackedWidget, QCheckBox, QFrame, QMessageBox,
+from PySide6.QtWidgets import (QDialog, QMainWindow, QLineEdit, QPlainTextEdit, QLabel, QPushButton, QVBoxLayout, QGroupBox, QMenu, QComboBox, QStackedWidget, QCheckBox, QFrame, QMessageBox,
                                QGraphicsDropShadowEffect)
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import Signal, Slot, QThread, Qt, QTimer, QObject
@@ -25,9 +25,11 @@ from calibration_view import CalibrationTableView
 from ui_input_dialog import InputDialog
 from sequence_manager import SequenceManager
 from screen_emulator import ScreenEmulator
+import json
 from settings_dialog import SettingsDialog
 from certificate_dialog import CertificateDialog
 from pdf_generator import generate_certificate_pdf
+import datetime
 from themes import DARK_THEME, LIGHT_THEME
 
 class MainWindow(QMainWindow):
@@ -82,6 +84,15 @@ class MainWindow(QMainWindow):
         self._apply_theme(self.current_theme)
 
         self.setWindowTitle("TVK6 Serial Console - Python 3.11 / PySide6")
+
+        # --- INICIO DE LA MODIFICACIÓN: Establecer tamaño de ventana ---
+        # Opción 1: Establecer un tamaño mínimo de 1020x700.
+        # Si prefieres esta opción, comenta la línea de showMaximized() y descomenta la siguiente:
+        # self.setMinimumSize(1020, 700)
+
+        # Opción 2: Iniciar la ventana maximizada (esta es la opción activa por defecto).
+        self.showMaximized()
+        # --- FIN DE LA MODIFICACIÓN ---
 
     def _find_widgets(self):
         """Encuentra y asigna todos los widgets de la UI a atributos de la clase."""
@@ -159,6 +170,7 @@ class MainWindow(QMainWindow):
         self.btnConfiguracion.clicked.connect(self._open_settings_dialog)
         self.btnGestionarModelos.clicked.connect(self.open_model_manager)
         self.state_manager.clear_screen_requested.connect(self.clear_monitor) # Conectar la nueva señal
+        self.ui.btnHistorial.clicked.connect(self.open_history_view)
 
         # Conectar el interruptor de vista
         self.viewSwitcher.toggled.connect(self.switch_view)
@@ -321,16 +333,66 @@ class MainWindow(QMainWindow):
     def send_command(self, command=None, from_button=False):
         """Recupera el texto o usa el comando del botón y lo envía al worker."""
         is_from_input_field = command is None
+
         if command is None and self.campoComando:
             command = self.campoComando.text().strip()
-        
+
         if not command:
             return
 
         # --- INICIO DE LA MODIFICACIÓN: Lógica de diálogo modal para DATOS_MEDIDOR ---
         current_state = self.state_manager.get_current_state_name()
-        if current_state == 'DATOS_MEDIDOR_MENU' and command in ['1', '2', '3', '4'] and not self.sequence_manager.command_queue:
-            # Mapeo de comandos a títulos y etiquetas para el diálogo
+        if current_state in ['CALIBRAR_MENU', 'CALIBRAR_TABLE_VIEW'] and command == '4' and not self.sequence_manager.command_queue:
+            # Abrimos el diálogo modal para la entrada de datos de calibración
+            labels = ["I [%]:", "L1-2-3:", "cos/sin:", "di:", "ds:", "go:", "r:"]
+            # --- INICIO DE LA MODIFICACIÓN: Valores por defecto y formato de envío ---
+            defaults = [
+                "",  # I [%]
+                "",  # L1-2-3
+                "",  # cos/sin
+                self.state_manager.parsed_values.get('di', ''),
+                self.state_manager.parsed_values.get('ds', ''),
+                "0.0",  # go
+                "",  # r
+            ]
+            dialog = InputDialog("Entrar Datos de Calibración", labels, self, data_type="multiple", defaults=defaults)
+
+            if dialog.exec() == QDialog.Accepted:
+                # Obtener los valores del diálogo. get_values() devuelve " " para campos vacíos.
+                raw_values = dialog.get_values()
+                
+                processed_values = []
+                for i, value in enumerate(raw_values):
+                    if value == " ":
+                        processed_values.append(value)
+                        continue
+
+                    # Campo L1-2-3 (índice 1)
+                    if i == 1:
+                        if value.isdigit() and len(value) == 1:
+                            processed_values.append(f"{value}-")
+                        else:
+                            processed_values.append(value) # Enviar como está para 'A', '1-2', etc.
+                    # Otros campos (numéricos)
+                    else:
+                        if value.lstrip('-').isdigit():
+                            processed_values.append(f"{value}.0")
+                        else:
+                            processed_values.append(value) # Ya es float o un valor no numérico
+
+                # Construir la secuencia de comandos
+                commands_to_send = [command]  # Primero, el comando '4'
+                commands_to_send.extend(processed_values)  # Añadir los valores procesados
+                commands_to_send.append('enter')  # Finalizar con un retorno de carro
+                
+                # Iniciar la secuencia de envío con el retardo configurado en el SequenceManager.
+                # Cada comando será enviado por el método send_command, que ya lo muestra en la consola.
+                self.sequence_manager.start_sequence(commands_to_send)
+
+            return
+            # --- FIN DE LA MODIFICACIÓN ---
+
+        elif current_state == 'DATOS_MEDIDOR_MENU' and command in ['1', '2', '3', '4'] and not self.sequence_manager.command_queue:
             dialog_map = {
                 '1': ("Entrar Valor X", "Nuevo valor para X [r/kWh]:"),
                 '2': ("Entrar Valor K", "Nuevo valor para K:"),
@@ -343,15 +405,27 @@ class MainWindow(QMainWindow):
             self.monitorSalida.appendPlainText(f"-> CMD: '{command}' (Abriendo diálogo)")
             self.send_to_worker.emit(command)
 
-            # Abrimos el diálogo modal
+            # Abrimos el diálogo modal para una sola entrada
             dialog = InputDialog(title, label, self)
-            if dialog.exec() == InputDialog.Accepted:
+            if dialog.exec() == QDialog.Accepted:
                 value = dialog.get_value()
-                self.monitorSalida.appendPlainText(f"-> DATO: Enviando '{value}'")
-                # Enviamos el valor introducido por el usuario
-                self.send_to_worker.emit(value)
-                # El SerialWorker ya añade un 'enter' (\r) al final de un envío de múltiples caracteres,
-                # por lo que no necesitamos enviar 'enter' explícitamente aquí.
+                if value: # Solo enviar si el usuario introdujo un valor
+                    processed_value = value
+                    # Añadir '.0' si es un entero para asegurar formato float, como lo requiere el TVK6
+                    if value.lstrip('-').isdigit():
+                        processed_value = f"{value}.0"
+                    
+                    self.monitorSalida.appendPlainText(f"-> DATO: Enviando '{processed_value}'")
+                    self.send_to_worker.emit(processed_value)
+                else: # Si el usuario dio OK con el campo vacío, cancelamos en el dispositivo
+                    self.send_to_worker.emit('esc') 
+                    self.monitorSalida.appendPlainText("-> CMD: 'esc' (Entrada vacía, cancelando)")
+            else: # Si el usuario canceló el diálogo (Cancel o tecla Esc)
+                self.send_to_worker.emit('esc')
+                self.monitorSalida.appendPlainText("-> CMD: 'esc' (Diálogo cancelado)")
+            return
+
+
         else:
             # --- INICIO DE LA MODIFICACIÓN: Lógica para imprimir certificado ---
             if current_state == 'CALIBRAR_TABLE_VIEW' and command == '5':
@@ -375,7 +449,52 @@ class MainWindow(QMainWindow):
                     generate_certificate_pdf(self, certificate_data, table_values)
                 return # Salimos para no ejecutar la lógica de envío normal
             # --- FIN DE LA MODIFICACIÓN ---
-
+            if current_state == 'CALIBRAR_TABLE_VIEW' and command == '6':
+                # 1. Recopilar datos para pre-rellenar el formulario, igual que para imprimir
+                prefill_data = {
+                    'modelo': self.current_model_data_for_cert.get('nombre', 'N/A'),
+                    'constante': self.state_manager.parsed_values.get('X', '---'),
+                    'tension': self.state_manager.parsed_values.get('U1', '---'),
+                    'intensidad': self.state_manager.parsed_values.get('I1', '---')
+                }
+                
+                # 2. Abrir el diálogo del certificado para obtener todos los datos
+                dialog = CertificateDialog(prefill_data, self)
+                dialog.setWindowTitle("Finalizar y Guardar Protocolo") # Cambiar título para claridad
+                
+                if dialog.exec() == CertificateDialog.Accepted:
+                    certificate_data = dialog.get_data()
+                    
+                    # 3. Recopilar todos los datos para guardar en la BD
+                    fecha = datetime.datetime.now().strftime("%Y-%m-%d")
+                    hora = datetime.datetime.now().strftime("%H:%M:%S")
+                    
+                    # Usar datos del diálogo
+                    calibrador = certificate_data.get('calibrador', 'N/A')
+                    modelo = certificate_data.get('modelo', 'N/A')
+                    constante = certificate_data.get('constante', '---')
+                    tension = certificate_data.get('tension', '---')
+                    intensidad = certificate_data.get('intensidad', '---')
+                    
+                    # Mantener la obtención de 'di' y 'ds' del state_manager
+                    di = self.state_manager.parsed_values.get('di', '---')
+                    ds = self.state_manager.parsed_values.get('ds', '---')
+ 
+                    # 4. Obtener los valores de la tabla de calibración
+                    table_values = self.calibration_table_view.get_all_values()
+                    table_json = json.dumps(table_values)
+ 
+                    # 5. Guardar los datos en la base de datos
+                    self.db_manager.save_calibration_data(fecha, hora, calibrador, constante, modelo, tension, intensidad, di, ds, table_json)
+ 
+                    # 6. Mostrar mensaje de confirmación
+                    QMessageBox.information(
+                        self,
+                        "Protocolo Finalizado",
+                        "Los datos de calibración han sido guardados en el historial."
+                    )
+                return
+ 
             # Lógica de envío normal para todos los demás comandos y estados
             self.monitorSalida.appendPlainText(f"-> CMD: '{command}'")
             self.command_to_statemanager.emit(command) # Notificar al StateManager
@@ -532,10 +651,14 @@ class MainWindow(QMainWindow):
             self.valorCalibT.setText(self.state_manager.parsed_values.get('T', '---'))
             self.valorCalibU1.setText(self.state_manager.parsed_values.get('U1', '---'))
             # Actualizar la cuarta fila (datos de la tabla)
+            self.valorCalibI.setText(self.state_manager.parsed_values.get('calib_i_percent', '---'))
+            self.valorCalibL123.setText(self.state_manager.parsed_values.get('calib_l123', '---'))
+            self.valorCalibCos.setText(self.state_manager.parsed_values.get('calib_cos', '---'))
             self.valorCalibDi.setText(self.state_manager.parsed_values.get('di', '---'))
             self.valorCalibDs.setText(self.state_manager.parsed_values.get('ds', '---'))
+            self.valorCalibGo.setText(self.state_manager.parsed_values.get('calib_go', '---'))
+            self.valorCalibR.setText(self.state_manager.parsed_values.get('calib_r', '---'))
             self.valorCalibI1A.setText(self.state_manager.parsed_values.get('I1', '---'))
-            # Los otros valores (No, I, L123, etc.) no se parsean actualmente. Se mostrarán como '---'.
         else:
             self.calibrationHeader.setVisible(False)
 
@@ -647,4 +770,8 @@ class MainWindow(QMainWindow):
                 self.thread.wait()
         except Exception:
             pass
-        super().closeEvent(event)
+
+    def open_history_view(self):
+        from history_view import HistoryView
+        self.history_window = HistoryView(self.db_manager, theme=self.current_theme, parent=self)
+        self.history_window.show()

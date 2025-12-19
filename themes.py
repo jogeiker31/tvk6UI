@@ -80,6 +80,30 @@ QCheckBox::indicator {
     width: 18px;
     height: 18px;
 }
+
+QTableWidget {
+    background-color: #3c3c3c;
+    border: 1px solid #444;
+    gridline-color: #444;
+}
+
+QTableWidget::item {
+    padding: 5px;
+    border-bottom: 1px solid #444;
+}
+
+QTableWidget::item:selected {
+    background-color: #007bff;
+    color: white;
+}
+
+QHeaderView::section {
+    background-color: #555;
+    color: white;
+    padding: 5px;
+    border: 1px solid #666;
+    font-weight: bold;
+}
 """
 
 LIGHT_THEME = """
@@ -115,5 +139,29 @@ QLineEdit, QComboBox {
     border: 1px solid #cccccc;
     border-radius: 4px;
     padding: 5px;
+}
+
+QTableWidget {
+    background-color: #ffffff;
+    border: 1px solid #dcdcdc;
+    gridline-color: #dcdcdc;
+}
+
+QTableWidget::item {
+    padding: 5px;
+    border-bottom: 1px solid #dcdcdc;
+}
+
+QTableWidget::item:selected {
+    background-color: #007bff;
+    color: white;
+}
+
+QHeaderView::section {
+    background-color: #e9ecef;
+    color: black;
+    padding: 5px;
+    border: 1px solid #dcdcdc;
+    font-weight: bold;
 }
 """

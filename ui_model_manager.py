@@ -20,7 +20,7 @@ class ModelManagerDialog(QDialog):
         self.current_model_id = None
 
         self.setWindowTitle("Gestor de Modelos de Medidor")
-        self.setMinimumSize(800, 600)
+        self.setMinimumSize(1024, 720)
         
         self.setup_ui()
         self.connect_signals()

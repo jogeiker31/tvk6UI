@@ -23,7 +23,7 @@
       "detection_keywords": ["ENTRADAS", "DAT.MEDID.", "DAT.SYST."],
       "buttons": [
         { "number": "1", "text": "DAT.MEDID." },
-        { "number": "2", "text": "DAT.SYST." },
+        { "number": "2", "text": "DAT.SYST.", "enabled": false },
         { "number": "3", "text": "TIT.PROTOC" , "enabled": false},
         { "number": "4", "text": "IMPRIMIR", "enabled": false },
         { "number": "5", "text": "FIN PROTOC", "enabled": false }
@@ -66,7 +66,8 @@
         { "number": "2", "text": "x.x   x.xx" },
         { "number": "3", "text": "CONT/UNICA" },
         { "number": "4", "text": "DATOS" },
-        { "number": "5", "text": "IMPRIMIR CERTIFICADO" }
+        { "number": "5", "text": "IMPRIMIR CERTIFICADO" },
+        { "number": "6", "text": "FINALIZAR PROTOCOLO" }
       ]
     },
     "CALIBRAR_DATA_ENTRY": {

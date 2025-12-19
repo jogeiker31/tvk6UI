@@ -18,7 +18,12 @@ class StateManager(QObject): # Inherit from QObject
         self.current_state = 'INIT'
         self._load_config(config_file)
         self.history = [] # Pila para el historial de navegación
-        self.parsed_values = {'X': '---', 'K': '---', 'M': '---', 'T': '---', 'U1': '---', 'I1': '---', 'di': '---', 'ds': '---', 'calib_percent': '---', 'calib_indicac': '---'}
+        self.parsed_values = {
+            'X': '---', 'K': '---', 'M': '---', 'T': '---', 'U1': '---', 'I1': '---', 
+            'di': '---', 'ds': '---', 'calib_percent': '---', 'calib_indicac': '---',
+            'calib_i_percent': '---', 'calib_l123': '---', 'calib_cos': '---',
+            'calib_go': '---', 'calib_r': '---'
+        }
         self.menu_manager.update_menu_config(None) # Iniciar sin menú
 
     def _load_config(self, config_file):
@@ -53,24 +58,51 @@ class StateManager(QObject): # Inherit from QObject
         # Parseo de di, ds e I1
         # Estos valores aparecen en CALIBRAR_MENU y CALIBRAR_TABLE_VIEW
         if self.current_state in ['CALIBRAR_MENU', 'CALIBRAR_TABLE_VIEW']:
+            # --- INICIO DE LA MODIFICACIÓN: Resetear valores antes de parsear ---
+            # Reseteamos los valores de la tabla de calibración a '---' antes de cada
+            # nuevo análisis de pantalla. Esto asegura que si un valor desaparece de la
+            # pantalla del TVK6 (por ejemplo, al navegar por los campos), también se
+            # limpiará de nuestra interfaz gráfica.
+            self.parsed_values['calib_i_percent'] = '---'
+            self.parsed_values['calib_l123'] = '---'
+            self.parsed_values['calib_cos'] = '---'
+            self.parsed_values['di'] = '---'
+            self.parsed_values['ds'] = '---'
+            self.parsed_values['calib_go'] = '---'
+            self.parsed_values['calib_r'] = '---'
+            self.parsed_values['I1'] = '---'
+            # --- FIN DE LA MODIFICACIÓN ---
             screen_lines = screen_text.split('\n')
-            if len(screen_lines) > 5: # Verificar si la línea 6 existe (índice 5)
-                line_6 = screen_lines[5]
-                # Parseo posicional para di, ds, e I1 en la línea 6
-                # di está en las columnas 37-45
-                if len(line_6) > 36:
-                    di_val = line_6[36:45].strip()
-                    if di_val: self.parsed_values['di'] = di_val
-                # ds está en las columnas 46-54
-                if len(line_6) > 45:
-                    ds_val = line_6[45:54].strip()
-                    if ds_val: self.parsed_values['ds'] = ds_val
-                # I1 [A] está en las columnas 73-80
-                if len(line_6) > 72: # Verificar si la columna 73 existe (índice 72)
-                    i1_val = line_6[72:80].strip()
-                    if i1_val:
-                        self.parsed_values['I1'] = i1_val
-            
+            # Los valores de la tabla de calibración están en la línea 6 (índice 5)
+            if len(screen_lines) > 5:
+                line_with_values = screen_lines[5]
+                
+                # Función auxiliar para extraer un valor de una porción de la línea de forma segura
+                def get_val(line, start, end):
+                    if len(line) > start:
+                        val = line[start:end].strip()
+                        return val if val else None
+                    return None
+
+                # Parseo posicional para todos los valores de la fila
+                i_percent_val = get_val(line_with_values, 9, 18)
+                l123_val = get_val(line_with_values, 18, 27)
+                cos_val = get_val(line_with_values, 27, 36)
+                di_val = get_val(line_with_values, 36, 45)
+                ds_val = get_val(line_with_values, 45, 54)
+                go_val = get_val(line_with_values, 54, 63)
+                r_val = get_val(line_with_values, 63, 72)
+                i1_val = get_val(line_with_values, 72, 80)
+
+                if i_percent_val: self.parsed_values['calib_i_percent'] = i_percent_val
+                if l123_val: self.parsed_values['calib_l123'] = l123_val
+                if cos_val: self.parsed_values['calib_cos'] = cos_val
+                if di_val: self.parsed_values['di'] = di_val
+                if ds_val: self.parsed_values['ds'] = ds_val
+                if go_val: self.parsed_values['calib_go'] = go_val
+                if r_val: self.parsed_values['calib_r'] = r_val
+                if i1_val: self.parsed_values['I1'] = i1_val
+
             # Parseo de datos del header de calibración
             # La expresión se ajusta para ser más específica a los formatos "xx.x o/o" y "xx.xx o/oo".
             # Busca un número con 1 o 2 decimales, seguido de espacios, y luego "o/o" o "o/oo".

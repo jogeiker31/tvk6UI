@@ -44,9 +44,31 @@ class DatabaseManager:
             cursor = self.conn.cursor()
             cursor.execute(create_table_sql)
             self.conn.commit()
+            self.create_history_table()
         except sqlite3.Error as e:
             print(f"Error al crear la tabla: {e}")
 
+    def create_history_table(self):
+        """Crea la tabla 'calibracion_history' si no existe."""
+        create_table_sql = """
+        CREATE TABLE IF NOT EXISTS calibracion_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fecha TEXT NOT NULL,
+            hora TEXT NOT NULL,
+            calibrador TEXT,
+            constante TEXT,
+            modelo TEXT,
+
+            tension TEXT,
+
+            intensidad TEXT,
+            di TEXT,
+            ds TEXT,
+
+            tabla_calibracion TEXT);"""
+        cursor = self.conn.cursor()
+        cursor.execute(create_table_sql)
+        self.conn.commit()
     def add_model(self, nombre, constante, k=1.0, ds=-0.2, di=0.5):
         """Añade un nuevo modelo a la base de datos."""
         sql = '''INSERT INTO modelos(nombre, constante, k, ds, di)
@@ -82,3 +104,51 @@ class DatabaseManager:
         """Cierra la conexión a la base de datos."""
         if self.conn:
             self.conn.close()
+
+    def save_calibration_data(self, fecha, hora, calibrador, constante, modelo, tension, intensidad, di, ds, tabla_calibracion):
+        """Guarda los datos de calibración en la tabla 'calibracion_history'."""
+        sql = '''INSERT INTO calibracion_history(fecha, hora, calibrador, constante, modelo, tension, intensidad, di, ds, tabla_calibracion)
+                 VALUES(?,?,?,?,?,?,?,?,?,?)'''
+        cursor = self.conn.cursor()
+        cursor.execute(sql, (fecha, hora, calibrador, constante, modelo, tension, intensidad, di, ds, tabla_calibracion))
+        self.conn.commit()
+
+    def get_all_calibration_data(self, fecha=None, calibrador=None, modelo=None):
+        """
+        Recupera todos los datos de calibración de la tabla 'calibracion_history',
+        con opción de filtrar por fecha, calibrador y modelo.
+        """
+        cursor = self.conn.cursor()
+        
+        query = "SELECT * FROM calibracion_history"
+        conditions = []
+        params = []
+
+        if fecha:
+            conditions.append("fecha = ?")
+            params.append(fecha)
+        
+        if calibrador:
+            # Usamos LIKE para búsquedas parciales y sin distinción de mayúsculas/minúsculas
+            conditions.append("LOWER(calibrador) LIKE ?")
+            params.append(f"%{calibrador.lower()}%")
+
+        if modelo:
+            conditions.append("LOWER(modelo) LIKE ?")
+            params.append(f"%{modelo.lower()}%")
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+
+        query += " ORDER BY fecha DESC, hora DESC"
+        
+        cursor.execute(query, tuple(params))
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]  # Convertir sqlite3.Row a diccionario
+
+    def get_calibration_data(self, calibration_id):
+        """Recupera los datos de calibración por ID."""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM calibracion_history WHERE id = ?", (calibration_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
