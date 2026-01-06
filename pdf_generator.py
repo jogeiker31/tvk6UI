@@ -14,6 +14,16 @@ from reportlab.lib.pagesizes import letter
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 from PySide6.QtCore import QStandardPaths
 
+def resource_path(relative_path):
+    """ Obtiene la ruta absoluta al recurso, funciona para desarrollo y para PyInstaller """
+    try:
+        # PyInstaller crea una carpeta temporal y almacena la ruta en _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 def generate_certificate_pdf(parent, certificate_data, table_values):
     """
     Genera un archivo PDF con los datos del certificado y la tabla de calibración.
@@ -69,7 +79,7 @@ def generate_certificate_pdf(parent, certificate_data, table_values):
         )
 
         # --- Títulos ---
-        logo_path = 'logo.png'
+        logo_path = resource_path('logo.png')
         if os.path.exists(logo_path):
             logo = Image(logo_path, width=3*inch, height=0.75*inch) # Ajustar tamaño según sea necesario
             logo.hAlign = 'CENTER'

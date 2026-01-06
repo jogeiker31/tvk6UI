@@ -2,7 +2,29 @@
 Módulo de gestión de la base de datos SQLite para los modelos de medidores.
 """
 import sqlite3
+import os
+import sys
 from pathlib import Path
+
+def get_app_data_path(app_name="TVK6SerialApp"):
+    """
+    Obtiene una ruta segura y persistente para almacenar los datos de la aplicación.
+    Crea el directorio si no existe.
+    """
+    if sys.platform.startswith('win'):
+        # Windows: C:\Users\<Usuario>\AppData\Roaming\<AppName>
+        path = Path(os.environ.get('APPDATA', Path.home() / 'AppData' / 'Roaming'))
+    elif sys.platform.startswith('darwin'):
+        # macOS: ~/Library/Application Support/<AppName>
+        path = Path.home() / 'Library' / 'Application Support'
+    else:
+        # Linux: ~/.local/share/<AppName>
+        path = Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local' / 'share'))
+
+    app_data_path = path / app_name
+    # Crear el directorio si no existe
+    app_data_path.mkdir(parents=True, exist_ok=True)
+    return app_data_path
 
 class DatabaseManager:
     """
@@ -11,11 +33,15 @@ class DatabaseManager:
     def __init__(self, db_name="medidores.db"):
         """
         Inicializa el gestor y se conecta a la base de datos.
-        Crea la tabla de modelos si no existe.
+        La base de datos se almacena en una carpeta de datos de aplicación específica del usuario.
         
         :param db_name: Nombre del archivo de la base de datos.
         """
-        self.db_path = Path(__file__).parent / db_name
+        # Obtener la ruta de datos de la aplicación y construir la ruta completa de la BD
+        app_data_dir = get_app_data_path()
+        self.db_path = app_data_dir / db_name
+        print(f"INFO: La base de datos se encuentra en: {self.db_path}")
+
         self.conn = None
         self.create_connection()
         self.create_table()

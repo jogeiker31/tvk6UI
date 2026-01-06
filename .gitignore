@@ -1,2 +1,7 @@
 venv/
 __pycache__/
+dist/
+build/
+Output/
+output/
+Output/mysetup.exe

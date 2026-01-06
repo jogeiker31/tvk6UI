@@ -26,12 +26,22 @@ from ui_input_dialog import InputDialog
 from sequence_manager import SequenceManager
 from screen_emulator import ScreenEmulator
 import json
-import os
+import os, sys
 from settings_dialog import SettingsDialog
 from certificate_dialog import CertificateDialog
 from pdf_generator import generate_certificate_pdf
 import datetime
 from themes import DARK_THEME, LIGHT_THEME
+
+def resource_path(relative_path):
+    """ Obtiene la ruta absoluta al recurso, funciona para desarrollo y para PyInstaller """
+    try:
+        # PyInstaller crea una carpeta temporal y almacena la ruta en _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 class MainWindow(QMainWindow):
     """Ventana principal que carga la UI y conecta la lógica."""
@@ -55,7 +65,7 @@ class MainWindow(QMainWindow):
         logo_container = QHBoxLayout()
         logo_container.addStretch()
         logo_label = QLabel()
-        logo_path = 'logo.png'
+        logo_path = resource_path('logo.png')
         if os.path.exists(logo_path):
             pixmap = QPixmap(logo_path)
             # Ajustamos el tamaño para que no sea demasiado grande en la UI principal
