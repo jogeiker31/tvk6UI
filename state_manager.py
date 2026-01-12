@@ -23,6 +23,7 @@ def resource_path(relative_path):
 class StateManager(QObject): # Inherit from QObject
     """Gestiona la máquina de estados de la aplicación."""
     clear_screen_requested = Signal() # Nueva señal para solicitar limpieza de pantalla
+    state_changed = Signal(str)
 
     def __init__(self, menu_manager, config_file='menu_config.json'):
         super().__init__() # ¡Llamada crucial al constructor de QObject!
@@ -31,6 +32,7 @@ class StateManager(QObject): # Inherit from QObject
         self._load_config(resource_path(config_file))
         self.history = [] # Pila para el historial de navegación
         self.parsed_values = {
+            'modelo': 'Sin especificar',
             'X': '---', 'K': '---', 'M': '---', 'T': '---', 'U1': '---', 'I1': '---', 
             'di': '---', 'ds': '---', 'calib_percent': '---', 'calib_indicac': '---',
             'calib_i_percent': '---', 'calib_l123': '---', 'calib_cos': '---',
@@ -233,4 +235,6 @@ class StateManager(QObject): # Inherit from QObject
         else:
             new_state_config = self.config['states'].get(new_state)
         # --- FIN DE LA MODIFICACIÓN ---
+
         self.menu_manager.update_menu_config(new_state_config)
+        self.state_changed.emit(new_state)

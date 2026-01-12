@@ -202,6 +202,7 @@ class MainWindow(QMainWindow):
         self.btnReconectar.clicked.connect(self.start_serial_worker)
         self.btnRetornar.clicked.connect(lambda: self.send_command('esc'))
         self.btn_reset.clicked.connect(lambda: self.send_command('reset'))
+        self.state_manager.state_changed.connect(self.on_state_changed)
         self.btnLimpiarMonitor.clicked.connect(self.clear_monitor)
         self.btnConfiguracion.clicked.connect(self._open_settings_dialog)
         self.btnGestionarModelos.clicked.connect(self.open_model_manager)
@@ -342,27 +343,43 @@ class MainWindow(QMainWindow):
             self.state_manager.set_state('INIT') # Resetear el estado de la máquina de estados
             # --- FIN DE LA MODIFICACIÓN ---
             
+    @Slot(str)
+    def on_state_changed(self, new_state):
+        """Se activa cuando el StateManager cambia de estado."""
+        # Si el estado cambia a MAIN_MENU, forzamos una actualización de la barra de estado
+        # para que se ponga verde y con el mensaje correcto.
+        if new_state == 'MAIN_MENU' and self.worker and self.worker.running:
+            self.set_status(True, "CONECTADO - TVK6 LISTO")
+
     @Slot(bool, str)
     def set_status(self, is_connected, message):
         """Actualiza la barra de estado superior."""
+        current_app_state = self.state_manager.get_current_state_name()
+
         if self.etiquetaEstado:
             self.etiquetaEstado.setText(message)
 
-        bg_color = "#28a745" if is_connected else "#dc3545"
+        if not is_connected:
+            bg_color = "#dc3545"  # Rojo
+        elif current_app_state == 'INIT':
+            bg_color = "#fd7e14"  # Naranja
+            self.etiquetaEstado.setText("ESPERANDO DATOS DEL TVK6")
+        else:
+            bg_color = "#28a745"  # Verde
+
         text = "Comando (reset, 1, 2, etc.)" if is_connected else "ERROR: Conexión serial bloqueada."
         enabled = is_connected
             
         if self.etiquetaEstado:
             self.etiquetaEstado.setStyleSheet(f"color: white; background-color: {bg_color}; padding: 8px; border-radius: 5px; font-weight: bold;")
-        
+
         if self.campoComando:
             self.campoComando.setEnabled(enabled)
             self.campoComando.setPlaceholderText(text)
-        
+
         if "ERROR" in message and self.campoComando:
             self.campoComando.setEnabled(True)
-        
-        # El botón de gestionar modelos debe estar SIEMPRE habilitado.
+
         if self.btnGestionarModelos:
             self.btnGestionarModelos.setEnabled(True)
 
@@ -579,6 +596,10 @@ class MainWindow(QMainWindow):
                 'ds': ds_value,
                 'di': di_value
             }
+            # --- INICIO DE LA MODIFICACIÓN: Actualizar modelo en StateManager y UI ---
+            self.state_manager.parsed_values['modelo'] = params['nombre']
+            self.measurement_panel.update_display(self.state_manager.parsed_values)
+            # --- FIN DE LA MODIFICACIÓN ---
             self.etiquetaEstado.setText(f"Cargando calibración con modelo (X={x_value}, K={k_value})...")
 
         # Secuencia de calibración actualizada

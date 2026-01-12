@@ -82,6 +82,38 @@
        </spacer>
       </item>
       <item>
+       <layout class="QVBoxLayout" name="valorModeloVBoxLayout">
+        <item>
+         <widget class="QLabel" name="labelModelo">
+          <property name="text">
+           <string>Modelo:</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignmentFlag::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="valorModelo">
+          <property name="font">
+           <font>
+            <pointsize>18</pointsize>
+           </font>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">color: #adb5bd;</string>
+          </property>
+          <property name="text">
+           <string>Sin especificar</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignmentFlag::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
        <layout class="QVBoxLayout" name="valorXVBoxLayout">
         <item>
          <widget class="QLabel" name="labelX">
