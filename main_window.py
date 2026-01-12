@@ -4,12 +4,11 @@ Módulo de la ventana principal de la aplicación.
 Contiene la clase MainWindow, que gestiona la interfaz de usuario,
 las interacciones y la orquestación del SerialWorker.
 """
-import re
 from collections import deque
 from PySide6.QtWidgets import (QDialog, QMainWindow, QLineEdit, QPlainTextEdit, QLabel, QPushButton, QVBoxLayout, QGroupBox, QMenu, QComboBox, QStackedWidget, QCheckBox, QFrame, QMessageBox, QHBoxLayout,
                                QGraphicsDropShadowEffect)
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore import Signal, Slot, QThread, Qt, QTimer, QObject
+from PySide6.QtCore import Signal, Slot, QThread, Qt, QTimer, QObject, QEvent
 from PySide6.QtGui import QKeySequence, QPixmap
 
 # Importaciones de nuestros módulos
@@ -127,6 +126,9 @@ class MainWindow(QMainWindow):
         self.showMaximized()
         # --- FIN DE LA MODIFICACIÓN ---
 
+        # Establecer la vista inicial (gráfica) y la visibilidad de los botones
+        self.switch_view(is_console_mode=False)
+
     def _find_widgets(self):
         """Encuentra y asigna todos los widgets de la UI a atributos de la clase."""
         self.monitorSalida = self.ui.findChild(QPlainTextEdit, 'monitorSalida')
@@ -142,6 +144,11 @@ class MainWindow(QMainWindow):
         self.btnConfiguracion = self.ui.findChild(QPushButton, 'btnConfiguracion')
         self.btnLimpiarMonitor = self.ui.findChild(QPushButton, 'btnLimpiarMonitor')
         self.btnGestionarModelos = self.ui.findChild(QPushButton, 'btnGestionarModelos')
+
+        # --- INICIO DE LA MODIFICACIÓN: Widgets del panel Medidor Activo ---
+        self.medidorActivoGroupBox = self.ui.findChild(QGroupBox, 'medidorActivoGroupBox')
+        self.valorModelo = self.ui.findChild(QLabel, 'valorModelo')
+        self.imagenMedidor = self.ui.findChild(QLabel, 'imagenMedidor')
 
         # Widgets para el cambio de vista
         self.viewSwitcher = self.ui.findChild(QCheckBox, 'viewSwitcher')
@@ -220,6 +227,17 @@ class MainWindow(QMainWindow):
         # Mantener este atajo causaba que se enviara el comando del campo Y el comando 'esc' del botón.
         self.btn_reset.setShortcut(QKeySequence("Ctrl+R")) # Ctrl+R para reset
 
+        # --- INICIO DE LA MODIFICACIÓN: Instalar filtro de eventos para hacer QLabels clickables ---
+        if self.valorModelo:
+            self.valorModelo.setCursor(Qt.PointingHandCursor)
+            self.valorModelo.setToolTip("Click para abrir el gestor de modelos")
+            self.valorModelo.installEventFilter(self)
+        if self.imagenMedidor:
+            self.imagenMedidor.setCursor(Qt.PointingHandCursor)
+            self.imagenMedidor.setToolTip("Click para abrir el gestor de modelos")
+            self.imagenMedidor.installEventFilter(self)
+        # --- FIN DE LA MODIFICACIÓN ---
+
     @Slot()
     def _open_settings_dialog(self):
         """Abre el diálogo de configuración para el cambio de tema."""
@@ -274,9 +292,13 @@ class MainWindow(QMainWindow):
     def switch_view(self, is_console_mode):
         """Cambia entre la vista de consola y la vista gráfica."""
         if is_console_mode:
-            self.viewStackedWidget.setCurrentIndex(0) # Ir a la página de consola
+            self.viewStackedWidget.setCurrentIndex(0)  # Ir a la página de consola
         else:
-            self.viewStackedWidget.setCurrentIndex(1) # Ir a la página de gráficos
+            self.viewStackedWidget.setCurrentIndex(1)  # Ir a la página de gráficos
+
+        # Ocultar el botón "Limpiar Consola" si no estamos en modo consola
+        if self.btnLimpiarMonitor:
+            self.btnLimpiarMonitor.setVisible(is_console_mode)
 
     @Slot()
     def refresh_com_ports(self):
@@ -594,11 +616,14 @@ class MainWindow(QMainWindow):
                 'constante': x_value,
                 'k': k_value,
                 'ds': ds_value,
-                'di': di_value
+                'di': di_value,
+                'imagen_path': params.get('imagen_path')
             }
             # --- INICIO DE LA MODIFICACIÓN: Actualizar modelo en StateManager y UI ---
             self.state_manager.parsed_values['modelo'] = params['nombre']
-            self.measurement_panel.update_display(self.state_manager.parsed_values)
+            self.state_manager.parsed_values['imagen_path'] = params.get('imagen_path')
+            self.measurement_panel.update_display(self.state_manager.parsed_values) # Actualiza panel superior
+            self._update_active_meter_display() # Actualiza panel derecho
             # --- FIN DE LA MODIFICACIÓN ---
             self.etiquetaEstado.setText(f"Cargando calibración con modelo (X={x_value}, K={k_value})...")
 
@@ -670,6 +695,7 @@ class MainWindow(QMainWindow):
         # 2. Detectar cambios de estado (ej. INIT -> MAIN_MENU).
         # 3. Dibujar los botones del menú actual.
         self.state_manager.process_screen_text(screen_text, self.measurement_panel)
+        self._update_active_meter_display()
         # --- INICIO DE LA MODIFICACIÓN: Actualizar vista gráfica de calibración ---
         # --- INICIO DE LA MODIFICACIÓN: Lógica de visibilidad de widgets personalizados ---
         current_state = self.state_manager.get_current_state_name()
@@ -747,6 +773,36 @@ class MainWindow(QMainWindow):
         self.loadingOverlay.setVisible(True)
         self.loadingOverlay.raise_()
 
+    def _update_active_meter_display(self):
+        """Actualiza el panel del medidor activo con el nombre y la imagen."""
+        valor_modelo = self.state_manager.parsed_values.get('modelo', 'Sin especificar')
+        imagen_path = self.state_manager.parsed_values.get('imagen_path')
+
+        if self.valorModelo:
+            self.valorModelo.setText(valor_modelo)
+            # Cambiar el color del texto si hay un modelo especificado para mayor visibilidad
+            if valor_modelo != 'Sin especificar':
+                self.valorModelo.setStyleSheet("color: #ffffff;") # Blanco brillante
+            else:
+                self.valorModelo.setStyleSheet("color: #adb5bd;") # Gris por defecto
+
+        if self.imagenMedidor:
+            if imagen_path and os.path.exists(imagen_path):
+                pixmap = QPixmap(imagen_path)
+                # Escalar el pixmap para que quepa en el QLabel manteniendo la relación de aspecto.
+                self.imagenMedidor.setPixmap(pixmap.scaled(
+                    self.imagenMedidor.width(), 
+                    self.imagenMedidor.height(), 
+                    Qt.KeepAspectRatio, 
+                    Qt.SmoothTransformation
+                ))
+                self.imagenMedidor.setToolTip(f"Imagen para {valor_modelo}\nClick para cambiar de modelo.")
+            else:
+                self.imagenMedidor.clear()
+                self.imagenMedidor.setPixmap(QPixmap()) # Limpiar pixmap
+                self.imagenMedidor.setToolTip("")
+
+
     def hide_loader(self):
         """Oculta el panel de carga."""
         self.loadingOverlay.setVisible(False)
@@ -814,6 +870,20 @@ class MainWindow(QMainWindow):
         overlay_size = self.loadingOverlay.size()
         center_point = self.rect().center()
         self.loadingOverlay.move(center_point.x() - overlay_size.width() / 2, center_point.y() - overlay_size.height() / 2)
+
+    def eventFilter(self, watched, event):
+        """
+        Filtra eventos para hacer clickables los QLabels del medidor activo.
+        """
+        # Comprobar si el evento es para uno de nuestros labels y es un click de ratón
+        if watched in [self.valorModelo, self.imagenMedidor] and event.type() == QEvent.MouseButtonPress:
+            # Comprobar si fue el botón izquierdo
+            if event.button() == Qt.LeftButton:
+                self.open_model_manager()
+                return True  # Indicar que el evento ha sido manejado y no debe propagarse
+        
+        # Para todos los demás eventos, pasar al manejador por defecto de la clase base
+        return super().eventFilter(watched, event)
 
     def closeEvent(self, event):
         """Asegura que el worker y el hilo terminen al cerrar la ventana."""

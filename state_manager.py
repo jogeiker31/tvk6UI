@@ -33,6 +33,7 @@ class StateManager(QObject): # Inherit from QObject
         self.history = [] # Pila para el historial de navegación
         self.parsed_values = {
             'modelo': 'Sin especificar',
+            'imagen_path': None,
             'X': '---', 'K': '---', 'M': '---', 'T': '---', 'U1': '---', 'I1': '---', 
             'di': '---', 'ds': '---', 'calib_percent': '---', 'calib_indicac': '---',
             'calib_i_percent': '---', 'calib_l123': '---', 'calib_cos': '---',

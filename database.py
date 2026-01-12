@@ -88,6 +88,14 @@ class DatabaseManager:
                 print("INFO: Aplicando migración -> Añadiendo columna 'temperatura' a la tabla 'calibracion_history'.")
                 cursor.execute("ALTER TABLE calibracion_history ADD COLUMN temperatura TEXT")
                 self.conn.commit()
+
+            # Migración: Añadir columna 'imagen_path' a 'modelos' si no existe
+            cursor.execute("PRAGMA table_info(modelos)")
+            modelos_columns = [info['name'] for info in cursor.fetchall()]
+            if 'imagen_path' not in modelos_columns:
+                print("INFO: Aplicando migración -> Añadiendo columna 'imagen_path' a la tabla 'modelos'.")
+                cursor.execute("ALTER TABLE modelos ADD COLUMN imagen_path TEXT")
+                self.conn.commit()
         except sqlite3.Error as e:
             print(f"Error durante la migración de la base de datos: {e}")
 
@@ -113,12 +121,12 @@ class DatabaseManager:
         cursor = self.conn.cursor()
         cursor.execute(create_table_sql)
         self.conn.commit()
-    def add_model(self, nombre, constante, k=1.0, ds=-0.2, di=0.5):
+    def add_model(self, nombre, constante, k=1.0, ds=-0.2, di=0.5, imagen_path=None):
         """Añade un nuevo modelo a la base de datos."""
-        sql = '''INSERT INTO modelos(nombre, constante, k, ds, di)
-                 VALUES(?,?,?,?,?)'''
+        sql = '''INSERT INTO modelos(nombre, constante, k, ds, di, imagen_path)
+                 VALUES(?,?,?,?,?,?)'''
         cursor = self.conn.cursor()
-        cursor.execute(sql, (nombre, constante, k, ds, di))
+        cursor.execute(sql, (nombre, constante, k, ds, di, imagen_path))
         self.conn.commit()
         return cursor.lastrowid
 
@@ -128,13 +136,13 @@ class DatabaseManager:
         cursor.execute("SELECT * FROM modelos ORDER BY nombre")
         return cursor.fetchall()
 
-    def update_model(self, model_id, nombre, constante, k, ds, di):
+    def update_model(self, model_id, nombre, constante, k, ds, di, imagen_path=None):
         """Actualiza un modelo existente."""
         sql = '''UPDATE modelos
-                 SET nombre = ?, constante = ?, k = ?, ds = ?, di = ?
+                 SET nombre = ?, constante = ?, k = ?, ds = ?, di = ?, imagen_path = ?
                  WHERE id = ?'''
         cursor = self.conn.cursor()
-        cursor.execute(sql, (nombre, constante, k, ds, di, model_id))
+        cursor.execute(sql, (nombre, constante, k, ds, di, imagen_path, model_id))
         self.conn.commit()
 
     def delete_model(self, model_id):

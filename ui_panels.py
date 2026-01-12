@@ -5,7 +5,9 @@ Cada clase en este módulo encapsula la lógica de una parte de la interfaz,
 haciendo que MainWindow sea más limpio y actúe como un orquestador.
 """
 from PySide6.QtWidgets import QLabel
-
+from PySide6.QtGui import QPixmap
+import os
+ 
 class MeasurementPanel:
     """
     Gestiona la lógica y los widgets del panel 'Valores de Medición'.
@@ -25,7 +27,6 @@ class MeasurementPanel:
         self.valorI1 = parent_ui.findChild(QLabel, 'valorI1')
         self.valorDi = parent_ui.findChild(QLabel, 'valorDi')
         self.valorDs = parent_ui.findChild(QLabel, 'valorDs')
-        self.valorModelo = parent_ui.findChild(QLabel, 'valorModelo')
 
     def update_display(self, parsed_values):
         """
@@ -43,7 +44,6 @@ class MeasurementPanel:
         valor_i1 = parsed_values.get('I1', '---')
         valor_di = parsed_values.get('di', '---')
         valor_ds = parsed_values.get('ds', '---')
-        valor_modelo = parsed_values.get('modelo', 'Sin especificar')
 
         self.valorX.setText(f"{valor_x}")
         self.valorK.setText(f"{valor_k}")
@@ -51,11 +51,3 @@ class MeasurementPanel:
         self.valorI1.setText(f"{valor_i1}")
         self.valorDi.setText(f"{valor_di}")
         self.valorDs.setText(f"{valor_ds}")
-
-        if self.valorModelo:
-            self.valorModelo.setText(f"{valor_modelo}")
-            # Cambiar el color del texto si hay un modelo especificado para mayor visibilidad
-            if valor_modelo != 'Sin especificar':
-                self.valorModelo.setStyleSheet("color: #ffffff;") # Blanco brillante
-            else:
-                self.valorModelo.setStyleSheet("color: #adb5bd;") # Gris por defecto
