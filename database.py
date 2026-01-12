@@ -71,6 +71,7 @@ class DatabaseManager:
             cursor.execute(create_table_sql)
             self.conn.commit()
             self.create_history_table()
+            self.create_calibrators_table()
             self._migrate_database() # Añadimos la llamada a la migración
         except sqlite3.Error as e:
             print(f"Error al crear la tabla: {e}")
@@ -96,8 +97,28 @@ class DatabaseManager:
                 print("INFO: Aplicando migración -> Añadiendo columna 'imagen_path' a la tabla 'modelos'.")
                 cursor.execute("ALTER TABLE modelos ADD COLUMN imagen_path TEXT")
                 self.conn.commit()
+
+            # Migración: Crear tabla 'calibradores' si no existe
+            cursor.execute("PRAGMA table_info(calibradores)")
+            if not cursor.fetchall(): # Si la tabla no existe, la lista estará vacía
+                print("INFO: Aplicando migración -> Creando tabla 'calibradores'.")
+                self.create_calibrators_table()
+
         except sqlite3.Error as e:
             print(f"Error durante la migración de la base de datos: {e}")
+
+    def create_calibrators_table(self):
+        """Crea la tabla 'calibradores' si no existe."""
+        create_table_sql = """
+        CREATE TABLE IF NOT EXISTS calibradores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL,
+            identificador TEXT NOT NULL UNIQUE,
+            imagen_path TEXT
+        );"""
+        cursor = self.conn.cursor()
+        cursor.execute(create_table_sql)
+        self.conn.commit()
 
     def create_history_table(self):
         """Crea la tabla 'calibracion_history' si no existe."""
@@ -150,6 +171,39 @@ class DatabaseManager:
         sql = 'DELETE FROM modelos WHERE id = ?'
         cursor = self.conn.cursor()
         cursor.execute(sql, (model_id,))
+        self.conn.commit()
+
+    # --- CRUD para Calibradores ---
+
+    def add_calibrator(self, nombre, identificador, imagen_path=None):
+        """Añade un nuevo calibrador a la base de datos."""
+        sql = '''INSERT INTO calibradores(nombre, identificador, imagen_path)
+                 VALUES(?,?,?)'''
+        cursor = self.conn.cursor()
+        cursor.execute(sql, (nombre, identificador, imagen_path))
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def get_all_calibrators(self):
+        """Recupera todos los calibradores de la base de datos."""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM calibradores ORDER BY nombre")
+        return cursor.fetchall()
+
+    def update_calibrator(self, calibrator_id, nombre, identificador, imagen_path=None):
+        """Actualiza un calibrador existente."""
+        sql = '''UPDATE calibradores
+                 SET nombre = ?, identificador = ?, imagen_path = ?
+                 WHERE id = ?'''
+        cursor = self.conn.cursor()
+        cursor.execute(sql, (nombre, identificador, imagen_path, calibrator_id))
+        self.conn.commit()
+
+    def delete_calibrator(self, calibrator_id):
+        """Elimina un calibrador por su ID."""
+        sql = 'DELETE FROM calibradores WHERE id = ?'
+        cursor = self.conn.cursor()
+        cursor.execute(sql, (calibrator_id,))
         self.conn.commit()
 
     def close(self):

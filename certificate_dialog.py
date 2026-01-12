@@ -33,6 +33,11 @@ class CertificateDialog(QDialog):
         self.temperatura_input = QLineEdit()
         self.modelo_input = QLineEdit() # Usamos un QLineEdit para que sea editable
 
+        # Pre-rellenar el nombre del calibrador si viene en los datos
+        calibrador_name = prefill_data.get('calibrador', '')
+        if calibrador_name:
+            self.calibrador_input.setText(calibrador_name)
+
         # Lógica para el campo de modelo:
         # Si el modelo viene pre-rellenado y no es 'N/A', lo mostramos y lo bloqueamos.
         # Si no, dejamos el campo editable para que el usuario lo ingrese.

@@ -4,16 +4,18 @@ Módulo de la ventana principal de la aplicación.
 Contiene la clase MainWindow, que gestiona la interfaz de usuario,
 las interacciones y la orquestación del SerialWorker.
 """
+import re
 from collections import deque
-from PySide6.QtWidgets import (QDialog, QMainWindow, QLineEdit, QPlainTextEdit, QLabel, QPushButton, QVBoxLayout, QGroupBox, QMenu, QComboBox, QStackedWidget, QCheckBox, QFrame, QMessageBox, QHBoxLayout,
+from PySide6.QtWidgets import (QDialog, QMainWindow, QLineEdit, QPlainTextEdit, QLabel, QPushButton, QVBoxLayout, QGroupBox, QMenu, QComboBox, QStackedWidget, QCheckBox, QFrame, QMessageBox, QHBoxLayout, QWidget,
                                QGraphicsDropShadowEffect)
 from PySide6.QtUiTools import QUiLoader
+from PySide6.QtCore import Signal, Slot, QThread, Qt, QTimer, QObject
 from PySide6.QtCore import Signal, Slot, QThread, Qt, QTimer, QObject, QEvent
 from PySide6.QtGui import QKeySequence, QPixmap
 
 # Importaciones de nuestros módulos
 from serial.tools import list_ports
-from serial_worker import SerialWorker
+from serial_connection_manager import SerialConnectionManager
 from config import ANSI_ESCAPE, PORT, BAUDRATE
 from ui_panels import MeasurementPanel
 from menu_manager import MenuManager
@@ -26,11 +28,14 @@ from sequence_manager import SequenceManager
 from screen_emulator import ScreenEmulator
 import json
 import os, sys
-from settings_dialog import SettingsDialog
-from certificate_dialog import CertificateDialog
-from pdf_generator import generate_certificate_pdf
 import datetime
 from themes import DARK_THEME, LIGHT_THEME
+# --- INICIO DE LA MODIFICACIÓN: Importar lógica de acciones ---
+from main_window_actions import (open_settings_dialog, open_model_manager,
+                                 open_calibrator_manager, open_history_view,
+                                 handle_calibration_data_entry, handle_meter_data_entry,
+                                 handle_print_certificate, handle_save_protocol, run_calibration_sequence)
+# --- FIN DE LA MODIFICACIÓN ---
 
 def resource_path(relative_path):
     """ Obtiene la ruta absoluta al recurso, funciona para desarrollo y para PyInstaller """
@@ -53,12 +58,20 @@ class MainWindow(QMainWindow):
 
         self.parsed_values = {'X': '---', 'K': '---', 'U1': '---', 'I1': '---', 'di': '---', 'ds': '---'}
 
+        # Almacenar datos del modelo y calibrador para el certificado y estado general
+        self.current_model_data_for_cert = {}
+        self.current_calibrator_data = {}
+
         loader = QUiLoader()
         self.ui = loader.load(ui_file, self)
         self.setCentralWidget(self.ui)
 
         self.current_theme = 'dark' # Tema por defecto
         self._find_widgets()
+
+        # --- INICIO DE LA MODIFICACIÓN: Crear y añadir panel de calibrador ---
+        self._create_calibrator_panel()
+        # --- FIN DE LA MODIFICACIÓN ---
 
         # --- INICIO DE LA MODIFICACIÓN: Añadir logo a la ventana principal ---
         logo_container = QHBoxLayout()
@@ -90,9 +103,6 @@ class MainWindow(QMainWindow):
         
         # 1. Inicializar el gestor de la base de datos
         self.db_manager = DatabaseManager()
-        
-        # Almacenar datos del modelo para el certificado
-        self.current_model_data_for_cert = {}
 
         self._connect_signals()
 
@@ -108,9 +118,8 @@ class MainWindow(QMainWindow):
         # Llenar la lista de puertos COM
         self.refresh_com_ports()
 
-        self.thread = None
-        self.worker = None
-        self.start_serial_worker()
+        self.connection_manager = SerialConnectionManager(self)
+        self.start_connection()
         
         # Aplicar el tema inicial
         self._apply_theme(self.current_theme)
@@ -129,6 +138,53 @@ class MainWindow(QMainWindow):
         # Establecer la vista inicial (gráfica) y la visibilidad de los botones
         self.switch_view(is_console_mode=False)
 
+    def _create_calibrator_panel(self):
+        """Crea y añade el panel del calibrador activo a la UI dinámicamente."""
+        self.calibradorActivoGroupBox = QGroupBox("Calibrador")
+        calibrador_layout = QVBoxLayout()
+
+        # Widget para la imagen y los datos (inicialmente oculto)
+        self.details_widget = QWidget()
+        details_layout = QHBoxLayout(self.details_widget)
+        details_layout.setContentsMargins(0, 0, 0, 0)
+        self.imagenCalibrador = QLabel()
+        self.imagenCalibrador.setFixedSize(80, 60)
+        self.imagenCalibrador.setScaledContents(False) # Usar KeepAspectRatio
+        self.imagenCalibrador.setAlignment(Qt.AlignCenter)
+        self.imagenCalibrador.setStyleSheet("border: 1px solid #555; border-radius: 4px;")
+
+        text_layout = QVBoxLayout()
+        self.valorNombreCalibrador = QLabel("Nombre no disponible")
+        self.valorNombreCalibrador.setStyleSheet("font-weight: bold;")
+        self.valorIdCalibrador = QLabel("ID: ---")
+        text_layout.addWidget(self.valorNombreCalibrador)
+        text_layout.addWidget(self.valorIdCalibrador)
+
+        details_layout.addWidget(self.imagenCalibrador)
+        details_layout.addLayout(text_layout)
+        details_layout.addStretch()
+
+        # Botón para seleccionar
+        self.btnSeleccionarCalibrador = QPushButton("Seleccionar Calibrador")
+        self.btnSeleccionarCalibrador.setStyleSheet("background-color: #007bff; color: white;")
+
+        calibrador_layout.addWidget(self.details_widget)
+        calibrador_layout.addWidget(self.btnSeleccionarCalibrador)
+        self.calibradorActivoGroupBox.setLayout(calibrador_layout)
+
+        # Encontrar el layout del panel derecho y añadir el nuevo groupbox
+        if self.medidorActivoGroupBox and self.medidorActivoGroupBox.parentWidget():
+            parent_layout = self.medidorActivoGroupBox.parentWidget().layout()
+            if parent_layout:
+                # Encontramos el índice del medidorActivoGroupBox para insertar el nuevo antes
+                for i in range(parent_layout.count()):
+                    item = parent_layout.itemAt(i)
+                    if item and item.widget() == self.medidorActivoGroupBox:
+                        parent_layout.insertWidget(i, self.calibradorActivoGroupBox)
+                        break
+        
+        self._update_active_calibrator_display() # Actualizar estado inicial
+
     def _find_widgets(self):
         """Encuentra y asigna todos los widgets de la UI a atributos de la clase."""
         self.monitorSalida = self.ui.findChild(QPlainTextEdit, 'monitorSalida')
@@ -146,10 +202,17 @@ class MainWindow(QMainWindow):
         self.btnGestionarModelos = self.ui.findChild(QPushButton, 'btnGestionarModelos')
 
         # --- INICIO DE LA MODIFICACIÓN: Widgets del panel Medidor Activo ---
-        self.medidorActivoGroupBox = self.ui.findChild(QGroupBox, 'medidorActivoGroupBox')
         self.valorModelo = self.ui.findChild(QLabel, 'valorModelo')
         self.imagenMedidor = self.ui.findChild(QLabel, 'imagenMedidor')
 
+        # Se deriva la referencia al GroupBox a partir de uno de sus hijos ('valorModelo').
+        # Esto es más robusto en caso de que el nombre del objeto 'medidorActivoGroupBox'
+        # en el archivo .ui sea incorrecto o haya cambiado. Si podemos encontrar el QLabel
+        # interno, podemos encontrar su contenedor.
+        if self.valorModelo:
+            self.medidorActivoGroupBox = self.valorModelo.parentWidget()
+        else:
+            self.medidorActivoGroupBox = self.ui.findChild(QGroupBox, 'medidorActivoGroupBox')
         # Widgets para el cambio de vista
         self.viewSwitcher = self.ui.findChild(QCheckBox, 'viewSwitcher')
         # --- INICIO DE LA MODIFICACIÓN: Ocultar checkbox de la ventana principal ---
@@ -205,29 +268,28 @@ class MainWindow(QMainWindow):
         
         # Conectar botones fijos
         self.command_to_statemanager.connect(self.state_manager.process_command)
-        self.btnRefrescarPuertos.clicked.connect(self.refresh_com_ports)
-        self.btnReconectar.clicked.connect(self.start_serial_worker)
+        self.btnRefrescarPuertos.clicked.connect(self.refresh_com_ports) 
+        self.btnReconectar.clicked.connect(self.start_connection)
         self.btnRetornar.clicked.connect(lambda: self.send_command('esc'))
         self.btn_reset.clicked.connect(lambda: self.send_command('reset'))
         self.state_manager.state_changed.connect(self.on_state_changed)
         self.btnLimpiarMonitor.clicked.connect(self.clear_monitor)
-        self.btnConfiguracion.clicked.connect(self._open_settings_dialog)
-        self.btnGestionarModelos.clicked.connect(self.open_model_manager)
+        self.btnConfiguracion.clicked.connect(lambda: open_settings_dialog(self))
+        self.btnGestionarModelos.clicked.connect(lambda: open_model_manager(self))
+        if hasattr(self, 'btnSeleccionarCalibrador'):
+            self.btnSeleccionarCalibrador.clicked.connect(lambda: open_calibrator_manager(self))
         self.state_manager.clear_screen_requested.connect(self.clear_monitor) # Conectar la nueva señal
-        self.ui.btnHistorial.clicked.connect(self.open_history_view) # Mantenemos el historial
+        self.ui.btnHistorial.clicked.connect(lambda: open_history_view(self)) # Mantenemos el historial
         # El interruptor de vista ahora se gestiona desde el diálogo de configuración.
 
         # Conectar el gestor de secuencias
         self.sequence_manager.send_command.connect(self.send_command)
         self.sequence_manager.sequence_finished.connect(self._on_sequence_finished)
         
-        # --- INICIO DE LA MODIFICACIÓN: Corrección de doble comando ---
-        # Se elimina el atajo global para la tecla Enter (Return).
-        # El envío al presionar Enter en el campo de texto ya se maneja con la señal `returnPressed`.
-        # Mantener este atajo causaba que se enviara el comando del campo Y el comando 'esc' del botón.
         self.btn_reset.setShortcut(QKeySequence("Ctrl+R")) # Ctrl+R para reset
 
-        # --- INICIO DE LA MODIFICACIÓN: Instalar filtro de eventos para hacer QLabels clickables ---
+        # Instalar filtros de eventos para hacer que los paneles de estado sean clickables.
+        # El manejo real del clic se hace en el método eventFilter.
         if self.valorModelo:
             self.valorModelo.setCursor(Qt.PointingHandCursor)
             self.valorModelo.setToolTip("Click para abrir el gestor de modelos")
@@ -236,17 +298,49 @@ class MainWindow(QMainWindow):
             self.imagenMedidor.setCursor(Qt.PointingHandCursor)
             self.imagenMedidor.setToolTip("Click para abrir el gestor de modelos")
             self.imagenMedidor.installEventFilter(self)
-        # --- FIN DE LA MODIFICACIÓN ---
 
-    @Slot()
-    def _open_settings_dialog(self):
-        """Abre el diálogo de configuración para el cambio de tema."""
-        is_console_mode = self.viewStackedWidget.currentIndex() == 0
-        dialog = SettingsDialog(current_theme=self.current_theme, is_console_mode=is_console_mode, parent=self)
-        dialog.theme_changed.connect(self._apply_theme)
-        # Conectar la nueva señal para cambiar la vista
-        dialog.view_mode_changed.connect(self.switch_view)
-        dialog.exec()
+        if hasattr(self, 'imagenCalibrador'):
+            self.imagenCalibrador.setCursor(Qt.PointingHandCursor)
+            self.imagenCalibrador.setToolTip("Click para abrir el gestor de calibradores")
+            self.imagenCalibrador.installEventFilter(self)
+        if hasattr(self, 'valorNombreCalibrador'):
+            self.valorNombreCalibrador.setCursor(Qt.PointingHandCursor)
+            self.valorNombreCalibrador.setToolTip("Click para abrir el gestor de calibradores")
+            self.valorNombreCalibrador.installEventFilter(self)
+        if hasattr(self, 'valorIdCalibrador'):
+            self.valorIdCalibrador.setCursor(Qt.PointingHandCursor)
+            self.valorIdCalibrador.setToolTip("Click para abrir el gestor de calibradores")
+            self.valorIdCalibrador.installEventFilter(self)
+    
+    @Slot(dict)
+    def _on_calibrator_selected(self, data):
+        """Se activa cuando un calibrador es seleccionado en el diálogo."""
+        self.current_calibrator_data = data
+        self._update_active_calibrator_display()
+
+    def _update_active_calibrator_display(self):
+        """Actualiza el panel del calibrador activo con nombre, ID e imagen."""
+        if not self.current_calibrator_data:
+            # Estado "no seleccionado"
+            self.details_widget.setVisible(False)
+            self.btnSeleccionarCalibrador.setText("Seleccionar Calibrador")
+        else:
+            # Estado "seleccionado"
+            self.valorNombreCalibrador.setText(self.current_calibrator_data.get('nombre', 'N/A'))
+            self.valorIdCalibrador.setText(f"ID: {self.current_calibrator_data.get('identificador', '---')}")
+            
+            imagen_path = self.current_calibrator_data.get('imagen_path')
+            if imagen_path and os.path.exists(imagen_path):
+                pixmap = QPixmap(imagen_path)
+                self.imagenCalibrador.setPixmap(pixmap.scaled(
+                    self.imagenCalibrador.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
+                ))
+            else:
+                self.imagenCalibrador.clear()
+                self.imagenCalibrador.setPixmap(QPixmap())
+
+            self.details_widget.setVisible(True)
+            self.btnSeleccionarCalibrador.setText("Cambiar Calibrador")
 
     @Slot(str)
     def _apply_theme(self, theme_name):
@@ -257,14 +351,6 @@ class MainWindow(QMainWindow):
         else:
             self.ui.setStyleSheet(LIGHT_THEME)
         # Podríamos necesitar reaplicar estilos específicos si se pierden
-
-    def open_model_manager(self):
-        """
-        Crea y muestra el diálogo para gestionar los modelos de medidores.
-        """
-        dialog = ModelManagerDialog(self.db_manager, self)
-        dialog.start_calibration_requested.connect(self._run_calibration_sequence)
-        dialog.exec() # Usamos exec() para que sea una ventana modal (bloqueante)
 
     def _setup_visual_effects(self):
         """Configura animaciones y otros efectos para los widgets."""
@@ -316,41 +402,19 @@ class MainWindow(QMainWindow):
                 self.comboPuerto.addItem(port.device, port.description)
             self.comboPuerto.setEnabled(True)
 
-    def start_serial_worker(self):
+    def start_connection(self):
         """Inicia o reinicia el QThread y el SerialWorker."""
         # Limpiar la consola al iniciar o reconectar.
         self.clear_monitor()
-        
-        try:
-            if self.worker: self.worker.stop()
-            if self.thread: 
-                self.thread.quit()
-                self.thread.wait()
-        except Exception:
-            pass
-        finally:
-             self.thread = None
-             self.worker = None
-
-        self.thread = QThread()
         
         # Obtener el puerto seleccionado del ComboBox
         selected_port = self.comboPuerto.currentText()
         if "No hay puertos" in selected_port:
             self.set_status(False, "Error: No se ha seleccionado un puerto COM válido.")
             return
-
-        self.worker = SerialWorker(port=selected_port) # Pasamos el puerto seleccionado al worker
-        self.worker.moveToThread(self.thread)
-
-        self.thread.started.connect(self.worker.run)
-        self.send_to_worker.connect(self.worker.write_command)   
-        self.worker.data_received.connect(self.display_data)
-        self.worker.error.connect(self.display_error)
-        self.worker.connection_status.connect(self.set_status)
-        self.worker.write_result.connect(self.on_write_result)
-
-        self.thread.start()
+        
+        # Delegamos toda la gestión al connection_manager
+        self.connection_manager.start_connection(selected_port)
 
     @Slot()
     def clear_monitor(self):
@@ -368,10 +432,12 @@ class MainWindow(QMainWindow):
     @Slot(str)
     def on_state_changed(self, new_state):
         """Se activa cuando el StateManager cambia de estado."""
-        # Si el estado cambia a MAIN_MENU, forzamos una actualización de la barra de estado
-        # para que se ponga verde y con el mensaje correcto.
-        if new_state == 'MAIN_MENU' and self.worker and self.worker.running:
+        # Actualiza la barra de estado y las vistas dinámicas según el nuevo estado.
+        if new_state == 'MAIN_MENU' and self.connection_manager and self.connection_manager.get_serial_port_status():
             self.set_status(True, "CONECTADO - TVK6 LISTO")
+        
+        # Centralizamos la actualización de la UI aquí
+        self._update_dynamic_views(new_state)
 
     @Slot(bool, str)
     def set_status(self, is_connected, message):
@@ -418,166 +484,30 @@ class MainWindow(QMainWindow):
 
         # --- INICIO DE LA MODIFICACIÓN: Lógica de diálogo modal para DATOS_MEDIDOR ---
         current_state = self.state_manager.get_current_state_name()
+        
         if current_state in ['CALIBRAR_MENU', 'CALIBRAR_TABLE_VIEW'] and command == '4' and not self.sequence_manager.command_queue:
-            # Abrimos el diálogo modal para la entrada de datos de calibración
-            labels = ["I [%]:", "L1-2-3:", "cos/sin:", "di:", "ds:", "go:", "r:"]
-            # --- INICIO DE LA MODIFICACIÓN: Valores por defecto y formato de envío ---
-            defaults = [
-                "",  # I [%]
-                "",  # L1-2-3
-                "",  # cos/sin
-                self.state_manager.parsed_values.get('di', ''),
-                self.state_manager.parsed_values.get('ds', ''),
-                "0.0",  # go
-                "",  # r
-            ]
-            dialog = InputDialog("Entrar Datos de Calibración", labels, self, data_type="multiple", defaults=defaults)
-
-            if dialog.exec() == QDialog.Accepted:
-                # Obtener los valores del diálogo. get_values() devuelve " " para campos vacíos.
-                raw_values = dialog.get_values()
-                
-                processed_values = []
-                for i, value in enumerate(raw_values):
-                    if value == " ":
-                        processed_values.append(value)
-                        continue
-
-                    # Campo L1-2-3 (índice 1)
-                    if i == 1:
-                        if value.isdigit() and len(value) == 1:
-                            processed_values.append(f"{value}-")
-                        else:
-                            processed_values.append(value) # Enviar como está para 'A', '1-2', etc.
-                    # Otros campos (numéricos)
-                    else:
-                        if value.lstrip('-').isdigit():
-                            processed_values.append(f"{value}.0")
-                        else:
-                            processed_values.append(value) # Ya es float o un valor no numérico
-
-                # Construir la secuencia de comandos
-                commands_to_send = [command]  # Primero, el comando '4'
-                commands_to_send.extend(processed_values)  # Añadir los valores procesados
-                commands_to_send.append('enter')  # Finalizar con un retorno de carro
-                
-                # Iniciar la secuencia de envío con el retardo configurado en el SequenceManager.
-                # Cada comando será enviado por el método send_command, que ya lo muestra en la consola.
-                self.sequence_manager.start_sequence(commands_to_send)
-
+            handle_calibration_data_entry(self)
             return
-            # --- FIN DE LA MODIFICACIÓN ---
 
         elif current_state == 'DATOS_MEDIDOR_MENU' and command in ['1', '2', '3', '4'] and not self.sequence_manager.command_queue:
-            dialog_map = {
-                '1': ("Entrar Valor X", "Nuevo valor para X [r/kWh]:"),
-                '2': ("Entrar Valor K", "Nuevo valor para K:"),
-                '3': ("Entrar Valor M", "Nuevo valor para M:"),
-                '4': ("Entrar Valor T", "Nuevo valor para T [min]:")
-            }
-            title, label = dialog_map[command]
-
-            # Primero, enviamos el comando numérico para entrar al modo de edición en el TVK6
-            self.monitorSalida.appendPlainText(f"-> CMD: '{command}' (Abriendo diálogo)")
-            self.send_to_worker.emit(command)
-
-            # Abrimos el diálogo modal para una sola entrada
-            dialog = InputDialog(title, label, self)
-            if dialog.exec() == QDialog.Accepted:
-                value = dialog.get_value()
-                if value: # Solo enviar si el usuario introdujo un valor
-                    processed_value = value
-                    # Añadir '.0' si es un entero para asegurar formato float, como lo requiere el TVK6
-                    if value.lstrip('-').isdigit():
-                        processed_value = f"{value}.0"
-                    
-                    self.monitorSalida.appendPlainText(f"-> DATO: Enviando '{processed_value}'")
-                    self.send_to_worker.emit(processed_value)
-                else: # Si el usuario dio OK con el campo vacío, cancelamos en el dispositivo
-                    self.send_to_worker.emit('esc') 
-                    self.monitorSalida.appendPlainText("-> CMD: 'esc' (Entrada vacía, cancelando)")
-            else: # Si el usuario canceló el diálogo (Cancel o tecla Esc)
-                self.send_to_worker.emit('esc')
-                self.monitorSalida.appendPlainText("-> CMD: 'esc' (Diálogo cancelado)")
+            handle_meter_data_entry(self, command)
             return
 
-
+        elif current_state == 'CALIBRAR_TABLE_VIEW' and command == '5':
+            handle_print_certificate(self)
+            return
+        
+        elif current_state == 'CALIBRAR_TABLE_VIEW' and command == '6':
+            handle_save_protocol(self)
+            return
+        
         else:
-            # --- INICIO DE LA MODIFICACIÓN: Lógica para imprimir certificado ---
-            if current_state == 'CALIBRAR_TABLE_VIEW' and command == '5':
-                # 1. Recopilar datos para pre-rellenar el formulario
-                prefill_data = {
-                    'modelo': self.current_model_data_for_cert.get('nombre', 'N/A'),
-                    'constante': self.state_manager.parsed_values.get('X', '---'),
-                    'tension': self.state_manager.parsed_values.get('U1', '---'),
-                    'intensidad': self.state_manager.parsed_values.get('I1', '---')
-                }
-                
-                # 2. Abrir el diálogo del certificado
-                dialog = CertificateDialog(prefill_data, self)
-                if dialog.exec() == CertificateDialog.Accepted:
-                    certificate_data = dialog.get_data()
-                    
-                    # 3. Obtener los valores de la tabla de calibración
-                    table_values = self.calibration_table_view.get_all_values()
-                    
-                    # 4. Generar el PDF
-                    generate_certificate_pdf(self, certificate_data, table_values)
-                return # Salimos para no ejecutar la lógica de envío normal
-            # --- FIN DE LA MODIFICACIÓN ---
-            if current_state == 'CALIBRAR_TABLE_VIEW' and command == '6':
-                # 1. Recopilar datos para pre-rellenar el formulario, igual que para imprimir
-                prefill_data = {
-                    'modelo': self.current_model_data_for_cert.get('nombre', 'N/A'),
-                    'constante': self.state_manager.parsed_values.get('X', '---'),
-                    'tension': self.state_manager.parsed_values.get('U1', '---'),
-                    'intensidad': self.state_manager.parsed_values.get('I1', '---')
-                }
-                
-                # 2. Abrir el diálogo del certificado para obtener todos los datos
-                dialog = CertificateDialog(prefill_data, self)
-                dialog.setWindowTitle("Finalizar y Guardar Protocolo") # Cambiar título para claridad
-                
-                if dialog.exec() == CertificateDialog.Accepted:
-                    certificate_data = dialog.get_data()
-                    
-                    # 3. Recopilar todos los datos para guardar en la BD
-                    fecha = datetime.datetime.now().strftime("%Y-%m-%d")
-                    hora = datetime.datetime.now().strftime("%H:%M:%S")
-                    
-                    # Usar datos del diálogo
-                    calibrador = certificate_data.get('calibrador', 'N/A')
-                    modelo = certificate_data.get('modelo', 'N/A')
-                    constante = certificate_data.get('constante', '---')
-                    tension = certificate_data.get('tension', '---')
-                    intensidad = certificate_data.get('intensidad', '---')
-                    temperatura = certificate_data.get('temperatura') or 'N/A'
-                    
-                    # Mantener la obtención de 'di' y 'ds' del state_manager
-                    di = self.state_manager.parsed_values.get('di', '---')
-                    ds = self.state_manager.parsed_values.get('ds', '---')
- 
-                    # 4. Obtener los valores de la tabla de calibración
-                    table_values = self.calibration_table_view.get_all_values()
-                    table_json = json.dumps(table_values)
- 
-                    # 5. Guardar los datos en la base de datos
-                    self.db_manager.save_calibration_data(fecha, hora, calibrador, constante, modelo, tension, intensidad, di, ds, table_json, temperatura)
- 
-                    # 6. Mostrar mensaje de confirmación
-                    QMessageBox.information(
-                        self,
-                        "Protocolo Finalizado",
-                        "Los datos de calibración han sido guardados en el historial."
-                    )
-                return
- 
             # Lógica de envío normal para todos los demás comandos y estados
             self.monitorSalida.appendPlainText(f"-> CMD: '{command}'")
             self.command_to_statemanager.emit(command) # Notificar al StateManager
             self.send_to_worker.emit(command) # Enviar al SerialWorker
         
-        if not self.thread or not self.thread.isRunning() or not self.worker.serial_port or not self.worker.serial_port.is_open:
+        if not self.connection_manager.get_serial_port_status():
             if self.monitorSalida:
                 self.monitorSalida.appendPlainText(f"[ERROR LOCAL] No se pudo enviar '{command}': Puerto no conectado.")
             if self.campoComando:
@@ -595,43 +525,6 @@ class MainWindow(QMainWindow):
         self.btn_reset.setEnabled(enabled)
         self.campoComando.setEnabled(enabled)
         self.btnGestionarModelos.setEnabled(enabled)
-
-    @Slot()
-    def _run_calibration_sequence(self, params):
-        """
-        Construye y ejecuta la secuencia de calibración.
-        :param params: Puede ser un string (valor de X) o un dict con {constante, k, ds, di}.
-        """
-        self.show_loader()
-        self._set_ui_enabled(False)
-
-        if isinstance(params, dict): # Calibración desde el gestor de modelos
-            x_value = str(params['constante'])
-            k_value = str(params['k'])
-            ds_value = str(params['ds'])
-            di_value = str(params['di'])
-            # Guardar datos del modelo para el futuro certificado
-            self.current_model_data_for_cert = {
-                'nombre': params['nombre'],
-                'constante': x_value,
-                'k': k_value,
-                'ds': ds_value,
-                'di': di_value,
-                'imagen_path': params.get('imagen_path')
-            }
-            # --- INICIO DE LA MODIFICACIÓN: Actualizar modelo en StateManager y UI ---
-            self.state_manager.parsed_values['modelo'] = params['nombre']
-            self.state_manager.parsed_values['imagen_path'] = params.get('imagen_path')
-            self.measurement_panel.update_display(self.state_manager.parsed_values) # Actualiza panel superior
-            self._update_active_meter_display() # Actualiza panel derecho
-            # --- FIN DE LA MODIFICACIÓN ---
-            self.etiquetaEstado.setText(f"Cargando calibración con modelo (X={x_value}, K={k_value})...")
-
-        # Secuencia de calibración actualizada
-        # Se eliminan los 'enter' explícitos después de x_value y k_value.
-        # El SerialWorker ya envía un \r después de transmitir un valor de múltiples caracteres.
-        commands = ['reset', '1', '1', '1', x_value, '2', k_value, 'esc', 'esc', '2', '3', "4", " ", " ", " ", di_value, ds_value," "," ", "enter", '1']
-        self.sequence_manager.start_sequence(commands)
 
     @Slot(object)
     def on_write_result(self, bytes_sent):
@@ -696,76 +589,69 @@ class MainWindow(QMainWindow):
         # 3. Dibujar los botones del menú actual.
         self.state_manager.process_screen_text(screen_text, self.measurement_panel)
         self._update_active_meter_display()
-        # --- INICIO DE LA MODIFICACIÓN: Actualizar vista gráfica de calibración ---
-        # --- INICIO DE LA MODIFICACIÓN: Lógica de visibilidad de widgets personalizados ---
-        current_state = self.state_manager.get_current_state_name()
 
-        # Visibilidad del título principal en el modo gráfico
+        current_state = self.state_manager.get_current_state_name()
+        self._update_dynamic_views(current_state, screen_text)
+
+        if current_state != 'CALIBRAR_TABLE_VIEW':
+            self.hide_loader() # Ocultar el loader después de procesar todo
+
+    def _update_dynamic_views(self, current_state, screen_text=None):
+        """
+        Actualiza la visibilidad y el contenido de los paneles dinámicos
+        (título, cabeceras, tabla de calibración) según el estado actual.
+        """
+        # Actualizar título principal de la vista gráfica
         state_config = self.state_manager.config['states'].get(current_state, {})
         title_for_state = state_config.get('title')
+        self.graphicViewTitle.setText(title_for_state or "")
+        self.graphicViewTitle.setVisible(bool(title_for_state))
 
-        if title_for_state:
-            self.graphicViewTitle.setText(title_for_state)
-            self.graphicViewTitle.setVisible(True)
-        else:
-            self.graphicViewTitle.setVisible(False)
+        # Visibilidad y datos de las cabeceras
+        is_datos_medidor_visible = (current_state == 'DATOS_MEDIDOR_MENU')
+        self.datosMedidorHeader.setVisible(is_datos_medidor_visible)
+        if is_datos_medidor_visible:
+            self._update_header_data('datos_medidor')
 
-        # Visibilidad de la cabecera de Datos Medidor
-        if current_state == 'DATOS_MEDIDOR_MENU':
-            self.datosMedidorHeader.setVisible(True)
-            # Actualizar valores en la cabecera
-            self.valorDatosX.setText(self.state_manager.parsed_values.get('X', '---'))
-            self.valorDatosK.setText(self.state_manager.parsed_values.get('K', '---'))
-            self.valorDatosM.setText(self.state_manager.parsed_values.get('M', '---'))
-            self.valorDatosT.setText(self.state_manager.parsed_values.get('T', '---'))
-            self.valorDatosU1.setText(self.state_manager.parsed_values.get('U1', '---'))
-        else:
-            self.datosMedidorHeader.setVisible(False)
+        is_calib_header_visible = current_state in ['CALIBRAR_MENU', 'CALIBRAR_TABLE_VIEW']
+        self.calibrationHeader.setVisible(is_calib_header_visible)
+        if is_calib_header_visible:
+            self._update_header_data('calibracion')
 
-        # Visibilidad de la cabecera de Calibración
-        if current_state in ['CALIBRAR_MENU', 'CALIBRAR_TABLE_VIEW']:
-            self.calibrationHeader.setVisible(True)
-            # Actualizar valores en la cabecera de calibración
-            self.valorCalibPercent.setText(self.state_manager.parsed_values.get('calib_percent', '---'))
-            indicac_text = self.state_manager.parsed_values.get('calib_indicac', '---')
-            self.valorCalibIndicac.setText(f"INDICAC.: {indicac_text}")
-            # Actualizar la segunda fila de la cabecera de calibración
-            self.valorCalibX.setText(self.state_manager.parsed_values.get('X', '---'))
-            self.valorCalibK.setText(self.state_manager.parsed_values.get('K', '---'))
-            self.valorCalibM.setText(self.state_manager.parsed_values.get('M', '---'))
-            self.valorCalibT.setText(self.state_manager.parsed_values.get('T', '---'))
-            self.valorCalibU1.setText(self.state_manager.parsed_values.get('U1', '---'))
-            # Actualizar la cuarta fila (datos de la tabla)
-            self.valorCalibI.setText(self.state_manager.parsed_values.get('calib_i_percent', '---'))
-            self.valorCalibL123.setText(self.state_manager.parsed_values.get('calib_l123', '---'))
-            self.valorCalibCos.setText(self.state_manager.parsed_values.get('calib_cos', '---'))
-            self.valorCalibDi.setText(self.state_manager.parsed_values.get('di', '---'))
-            self.valorCalibDs.setText(self.state_manager.parsed_values.get('ds', '---'))
-            self.valorCalibGo.setText(self.state_manager.parsed_values.get('calib_go', '---'))
-            self.valorCalibR.setText(self.state_manager.parsed_values.get('calib_r', '---'))
-            self.valorCalibI1A.setText(self.state_manager.parsed_values.get('I1', '---'))
-        else:
-            self.calibrationHeader.setVisible(False)
-
-        # Visibilidad de la tabla de calibración
-        if current_state == 'CALIBRAR_TABLE_VIEW':
-            self.calibration_table_view.setVisible(True)
-            # Obtener di y ds del state_manager
+        # Visibilidad y datos de la tabla de calibración
+        is_calib_table_visible = (current_state == 'CALIBRAR_TABLE_VIEW')
+        self.calibration_table_view.setVisible(is_calib_table_visible)
+        if is_calib_table_visible and screen_text:
             di = self.state_manager.parsed_values.get('di', '---')
             ds = self.state_manager.parsed_values.get('ds', '---')
             self.calibration_table_view.update_values(screen_text, di, ds)
-            # Cuando estamos en la vista de tabla, el StateManager ya sabe cuál es el
-            # estado actual. Simplemente le pedimos al MenuManager que dibuje los botones
-            # correspondientes a este estado (CALIBRAR_TABLE_VIEW).
             self.menu_manager.parse_and_draw(screen_text)
-        else:
-            # Si no estamos en esa vista, nos aseguramos de que esté oculta
-            self.calibration_table_view.setVisible(False)
-            # Restaurar el título si es necesario (esto podría necesitar más lógica)
-        # --- FIN DE LA MODIFICACIÓN ---
-        # --- FIN DE LA MODIFICACIÓN ---
-        if current_state != 'CALIBRAR_TABLE_VIEW':
-            self.hide_loader() # Ocultar el loader después de procesar todo
+
+    def _update_header_data(self, header_type):
+        """Rellena los QLabels de una cabecera específica con datos del StateManager."""
+        vals = self.state_manager.parsed_values
+        if header_type == 'datos_medidor':
+            self.valorDatosX.setText(vals.get('X', '---'))
+            self.valorDatosK.setText(vals.get('K', '---'))
+            self.valorDatosM.setText(vals.get('M', '---'))
+            self.valorDatosT.setText(vals.get('T', '---'))
+            self.valorDatosU1.setText(vals.get('U1', '---'))
+        elif header_type == 'calibracion':
+            self.valorCalibPercent.setText(vals.get('calib_percent', '---'))
+            self.valorCalibIndicac.setText(f"INDICAC.: {vals.get('calib_indicac', '---')}")
+            self.valorCalibX.setText(vals.get('X', '---'))
+            self.valorCalibK.setText(vals.get('K', '---'))
+            self.valorCalibM.setText(vals.get('M', '---'))
+            self.valorCalibT.setText(vals.get('T', '---'))
+            self.valorCalibU1.setText(vals.get('U1', '---'))
+            self.valorCalibI.setText(vals.get('calib_i_percent', '---'))
+            self.valorCalibL123.setText(vals.get('calib_l123', '---'))
+            self.valorCalibCos.setText(vals.get('calib_cos', '---'))
+            self.valorCalibDi.setText(vals.get('di', '---'))
+            self.valorCalibDs.setText(vals.get('ds', '---'))
+            self.valorCalibGo.setText(vals.get('calib_go', '---'))
+            self.valorCalibR.setText(vals.get('calib_r', '---'))
+            self.valorCalibI1A.setText(vals.get('I1', '---'))
 
     def show_loader(self):
         """Muestra el panel de carga superpuesto."""
@@ -873,16 +759,19 @@ class MainWindow(QMainWindow):
 
     def eventFilter(self, watched, event):
         """
-        Filtra eventos para hacer clickables los QLabels del medidor activo.
+        Filtra eventos para hacer clickables los paneles de estado (medidor y calibrador).
         """
-        # Comprobar si el evento es para uno de nuestros labels y es un click de ratón
-        if watched in [self.valorModelo, self.imagenMedidor] and event.type() == QEvent.MouseButtonPress:
-            # Comprobar si fue el botón izquierdo
-            if event.button() == Qt.LeftButton:
+        # Si se hace clic izquierdo en uno de los widgets observados, abrimos el gestor correspondiente.
+        if event.type() == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
+            # Panel del Medidor
+            if watched in [self.valorModelo, self.imagenMedidor]:
                 self.open_model_manager()
-                return True  # Indicar que el evento ha sido manejado y no debe propagarse
+                return True  # Evento manejado
+            # Panel del Calibrador
+            if hasattr(self, 'imagenCalibrador') and watched in [self.imagenCalibrador, self.valorNombreCalibrador, self.valorIdCalibrador]:
+                self.open_calibrator_manager()
+                return True # Evento manejado
         
-        # Para todos los demás eventos, pasar al manejador por defecto de la clase base
         return super().eventFilter(watched, event)
 
     def closeEvent(self, event):
@@ -891,16 +780,8 @@ class MainWindow(QMainWindow):
         if self.anim_timer:
             self.anim_timer.stop()
         self.db_manager.close()
-        try:
-            if self.worker:
-                self.worker.stop()
-            if self.thread:
-                self.thread.quit()
-                self.thread.wait()
-        except Exception:
-            pass
+        self.connection_manager.stop_connection()
 
     def open_history_view(self):
-        from history_view import HistoryView
-        self.history_window = HistoryView(self.db_manager, theme=self.current_theme, parent=self)
-        self.history_window.show()
+        """Abre la ventana del historial de calibraciones."""
+        open_history_view(self)
