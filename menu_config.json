@@ -66,8 +66,7 @@
         { "number": "2", "text": "x.x   x.xx" },
         { "number": "3", "text": "CONT/UNICA" },
         { "number": "4", "text": "DATOS" },
-        { "number": "5", "text": "IMPRIMIR CERTIFICADO" },
-        { "number": "6", "text": "FINALIZAR PROTOCOLO" }
+        { "number": "5", "text": "FINALIZAR PROTOCOLO" }
       ]
     },
     "CALIBRAR_DATA_ENTRY": {

@@ -130,30 +130,10 @@ def handle_meter_data_entry(main_window, command):
         main_window.send_to_worker.emit('esc')
         main_window.monitorSalida.appendPlainText("-> CMD: 'esc' (Diálogo cancelado)")
 
-def handle_print_certificate(main_window):
-    """Recopila datos y genera el certificado PDF."""
-    prefill_data = {
-        'modelo': main_window.current_model_data_for_cert.get('nombre', 'N/A'),
-        'constante': main_window.state_manager.parsed_values.get('X', '---'),
-        'tension': main_window.state_manager.parsed_values.get('U1', '---'),
-        'intensidad': main_window.state_manager.parsed_values.get('I1', '---'),
-        'calibrador': main_window.current_calibrator_data.get('nombre', '')
-    }
-    
-    dialog = CertificateDialog(prefill_data, main_window)
-
-    if dialog.exec() == CertificateDialog.Accepted:
-        certificate_data = dialog.get_data()
-
-        # Verificar si el modelo es nuevo y preguntar si se desea registrar.
-        model_name = certificate_data.get('modelo')
-        _check_and_register_model_if_new(main_window, model_name)
-
-        table_values = main_window.calibration_table_view.get_all_values()
-        generate_certificate_pdf(main_window, certificate_data, table_values)
-
 def handle_save_protocol(main_window):
-    """Recopila datos y los guarda en el historial de la base de datos."""
+    """
+    Recopila datos, los guarda en el historial y opcionalmente imprime el certificado.
+    """
     prefill_data = {
         'modelo': main_window.current_model_data_for_cert.get('nombre', 'N/A'),
         'constante': main_window.state_manager.parsed_values.get('X', '---'),
@@ -163,7 +143,7 @@ def handle_save_protocol(main_window):
     }
     
     dialog = CertificateDialog(prefill_data, main_window)
-    dialog.setWindowTitle("Finalizar y Guardar Protocolo")
+    dialog.setWindowTitle("Finalizar Protocolo")
     
     if dialog.exec() == CertificateDialog.Accepted:
         cert_data = dialog.get_data()
@@ -178,6 +158,7 @@ def handle_save_protocol(main_window):
             QMessageBox.warning(main_window, "Calibrador no seleccionado", "Por favor, seleccione un calibrador antes de guardar el protocolo.")
             return
 
+        # --- 1. Siempre guardar en la base de datos ---
         fecha = datetime.datetime.now().strftime("%Y-%m-%d")
         hora = datetime.datetime.now().strftime("%H:%M:%S")
         modelo = cert_data.get('modelo', 'N/A')
@@ -197,11 +178,18 @@ def handle_save_protocol(main_window):
             intensidad, di, ds, table_json, temperatura=temperatura
         )
 
-        QMessageBox.information(
-            main_window,
-            "Protocolo Finalizado",
-            "Los datos de calibración han sido guardados en el historial."
-        )
+        # --- 2. Imprimir opcionalmente ---
+        if dialog.should_print():
+            # La función de PDF ya muestra un mensaje de éxito/error.
+            table_values = main_window.calibration_table_view.get_all_values()
+            generate_certificate_pdf(main_window, cert_data, table_values)
+        else:
+            # Si solo guardamos, mostramos un mensaje de confirmación.
+            QMessageBox.information(
+                main_window,
+                "Protocolo Guardado",
+                "Los datos de calibración han sido guardados en el historial."
+            )
 
 def _check_and_register_model_if_new(main_window, model_name):
     """

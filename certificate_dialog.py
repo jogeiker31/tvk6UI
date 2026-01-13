@@ -1,7 +1,7 @@
 """
 Módulo que define el QDialog para la entrada de datos del certificado de calibración.
 """
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, QLineEdit, QDialogButtonBox, QGroupBox, QLabel)
+from PySide6.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, QLineEdit, QDialogButtonBox, QGroupBox, QLabel, QCheckBox)
 from PySide6.QtCore import QDate, QTime
 
 
@@ -69,11 +69,21 @@ class CertificateDialog(QDialog):
         form_group.setLayout(form_layout)
         layout.addWidget(form_group)
 
+        # --- Checkbox para imprimir ---
+        self.print_checkbox = QCheckBox("Imprimir certificado ahora")
+        self.print_checkbox.setChecked(True) # Marcado por defecto
+        self.print_checkbox.setStyleSheet("margin-top: 10px;")
+        layout.addWidget(self.print_checkbox)
+
         # Botones de Aceptar y Cancelar
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
         layout.addWidget(self.button_box)
+
+    def should_print(self):
+        """Devuelve si el checkbox de imprimir está marcado."""
+        return self.print_checkbox.isChecked()
 
     def get_data(self):
         """Devuelve un diccionario con todos los datos para el PDF."""

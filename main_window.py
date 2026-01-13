@@ -34,8 +34,8 @@ from themes import DARK_THEME, LIGHT_THEME
 # --- INICIO DE LA MODIFICACIÓN: Importar lógica de acciones ---
 from main_window_actions import (open_settings_dialog, open_model_manager,
                                  open_calibrator_manager, open_history_view,
-                                 handle_calibration_data_entry, handle_meter_data_entry,
-                                 handle_print_certificate, handle_save_protocol, run_calibration_sequence)
+                                 handle_calibration_data_entry, handle_meter_data_entry, handle_save_protocol,
+                                 run_calibration_sequence)
 # --- FIN DE LA MODIFICACIÓN ---
 
 def resource_path(relative_path):
@@ -454,10 +454,6 @@ class MainWindow(QMainWindow):
             return
 
         elif current_state == 'CALIBRAR_TABLE_VIEW' and command == '5':
-            handle_print_certificate(self)
-            return
-        
-        elif current_state == 'CALIBRAR_TABLE_VIEW' and command == '6':
             handle_save_protocol(self)
             return
         
