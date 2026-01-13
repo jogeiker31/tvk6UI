@@ -141,8 +141,20 @@ def handle_print_certificate(main_window):
     }
     
     dialog = CertificateDialog(prefill_data, main_window)
+    # Conectar la señal del diálogo para actualizar el calibrador en la ventana principal.
+    dialog.calibrator_updated.connect(main_window._on_calibrator_selected)
+
     if dialog.exec() == CertificateDialog.Accepted:
         certificate_data = dialog.get_data()
+
+        # Verificar si el calibrador es nuevo y preguntar si se desea registrar.
+        calibrator_name = certificate_data.get('calibrador')
+        _check_and_register_calibrator_if_new(main_window, calibrator_name)
+
+        # Verificar si el modelo es nuevo y preguntar si se desea registrar.
+        model_name = certificate_data.get('modelo')
+        _check_and_register_model_if_new(main_window, model_name)
+
         table_values = main_window.calibration_table_view.get_all_values()
         generate_certificate_pdf(main_window, certificate_data, table_values)
 
@@ -158,13 +170,31 @@ def handle_save_protocol(main_window):
     
     dialog = CertificateDialog(prefill_data, main_window)
     dialog.setWindowTitle("Finalizar y Guardar Protocolo")
+    # Conectar la señal del diálogo para actualizar el calibrador en la ventana principal.
+    dialog.calibrator_updated.connect(main_window._on_calibrator_selected)
     
     if dialog.exec() == CertificateDialog.Accepted:
         cert_data = dialog.get_data()
+
+        # Verificar si el calibrador es nuevo y preguntar si se desea registrar.
+        calibrator_name = cert_data.get('calibrador')
+        if not _check_and_register_calibrator_if_new(main_window, calibrator_name):
+            QMessageBox.warning(main_window, "Operación Cancelada", "Se requiere un calibrador válido para guardar el protocolo. Por favor, inténtelo de nuevo y seleccione o cree un calibrador.")
+            return
+
+        # Verificar si el modelo es nuevo y preguntar si se desea registrar.
+        model_name = cert_data.get('modelo')
+        _check_and_register_model_if_new(main_window, model_name)
         
+        # Obtener el ID del calibrador en lugar del nombre.
+        # Este dato se actualiza dentro de _check_and_register_calibrator_if_new si es necesario.
+        calibrador_id = main_window.current_calibrator_data.get('id')
+        if not calibrador_id:
+            QMessageBox.warning(main_window, "Calibrador no seleccionado", "Por favor, seleccione un calibrador antes de guardar el protocolo.")
+            return
+
         fecha = datetime.datetime.now().strftime("%Y-%m-%d")
         hora = datetime.datetime.now().strftime("%H:%M:%S")
-        calibrador = cert_data.get('calibrador', 'N/A')
         modelo = cert_data.get('modelo', 'N/A')
         constante = cert_data.get('constante', '---')
         tension = cert_data.get('tension', '---')
@@ -176,9 +206,10 @@ def handle_save_protocol(main_window):
         table_values = main_window.calibration_table_view.get_all_values()
         table_json = json.dumps(table_values)
 
+        # Llamar a save_calibration_data con el ID del calibrador.
         main_window.db_manager.save_calibration_data(
-            fecha, hora, calibrador, constante, modelo, tension, 
-            intensidad, di, ds, table_json, temperatura
+            fecha, hora, calibrador_id, constante, modelo, tension, 
+            intensidad, di, ds, table_json, temperatura=temperatura
         )
 
         QMessageBox.information(
@@ -186,3 +217,113 @@ def handle_save_protocol(main_window):
             "Protocolo Finalizado",
             "Los datos de calibración han sido guardados en el historial."
         )
+
+def _check_and_register_model_if_new(main_window, model_name):
+    """
+    Verifica si un modelo es nuevo. Si lo es, pregunta al usuario si desea
+    registrarlo en la base de datos con los parámetros actuales.
+    """
+    if not model_name or model_name in ['N/A', 'Sin especificar']:
+        return
+
+    # Verificar si el modelo ya existe en la base de datos
+    existing_model = main_window.db_manager.get_model_by_name(model_name)
+    if existing_model:
+        return  # El modelo ya existe, no hacer nada
+
+    # El modelo no existe, preguntar al usuario si desea crearlo
+    vals = main_window.state_manager.parsed_values
+    constante = vals.get('X', '---')
+    k = vals.get('K', '---')
+    di = vals.get('di', '---')
+    ds = vals.get('ds', '---')
+
+    msg_box = QMessageBox(main_window)
+    msg_box.setIcon(QMessageBox.Question)
+    msg_box.setWindowTitle("Registrar Nuevo Modelo")
+    msg_box.setText(
+        f"El modelo '{model_name}' no existe en la base de datos.\n\n"
+        f"¿Desea registrarlo con los siguientes parámetros actuales?\n"
+        f"  - Constante (X): {constante}\n"
+        f"  - K: {k}\n"
+        f"  - Límite Inferior (di): {di}\n"
+        f"  - Límite Superior (ds): {ds}"
+    )
+    yes_button = msg_box.addButton("Sí", QMessageBox.ButtonRole.YesRole)
+    no_button = msg_box.addButton("No", QMessageBox.ButtonRole.NoRole)
+    msg_box.setDefaultButton(no_button)
+    msg_box.exec()
+
+    if msg_box.clickedButton() == yes_button:
+        try:
+            # Intentar convertir los valores a float. Si falla, se lanza ValueError.
+            main_window.db_manager.add_model(
+                nombre=model_name,
+                constante=float(constante),
+                k=float(k),
+                di=float(di),
+                ds=float(ds)
+            )
+            QMessageBox.information(main_window, "Modelo Registrado", f"El modelo '{model_name}' ha sido guardado exitosamente.")
+        except ValueError:
+            QMessageBox.warning(main_window, "Error en Parámetros", "No se pudo registrar el modelo. Uno o más parámetros actuales (X, K, di, ds) no son números válidos.")
+        except Exception as e:
+            QMessageBox.critical(main_window, "Error en Base de Datos", f"Ocurrió un error al guardar el modelo: {e}")
+
+def _check_and_register_calibrator_if_new(main_window, calibrator_name):
+    """
+    Verifica si un calibrador es nuevo. Si lo es, pregunta al usuario si desea
+    registrarlo. Devuelve True si el calibrador es válido (existente o recién creado),
+    False en caso contrario.
+    """
+    if not calibrator_name or calibrator_name in ['N/A', 'Sin especificar', '']:
+        return False
+
+    # 1. Comprobar si el calibrador activo actual coincide con el nombre.
+    if main_window.current_calibrator_data and main_window.current_calibrator_data.get('nombre') == calibrator_name:
+        return True  # Coincide, todo en orden.
+
+    # 2. Si no coincide, buscar en la base de datos.
+    existing_calibrator = main_window.db_manager.get_calibrator_by_name(calibrator_name)
+    if existing_calibrator:
+        # Lo encontramos. Lo seleccionamos como activo y continuamos.
+        main_window._on_calibrator_selected(existing_calibrator)
+        return True
+
+    # 3. Si no existe, preguntar al usuario si desea crearlo.
+    msg_box = QMessageBox(main_window)
+    msg_box.setIcon(QMessageBox.Question)
+    msg_box.setWindowTitle("Registrar Nuevo Calibrador")
+    msg_box.setText(f"El calibrador '{calibrator_name}' no existe en la base de datos.\n\n¿Desea registrarlo ahora?")
+    yes_button = msg_box.addButton("Sí, registrar", QMessageBox.ButtonRole.YesRole)
+    no_button = msg_box.addButton("No", QMessageBox.ButtonRole.NoRole)
+    msg_box.setDefaultButton(no_button)
+    msg_box.exec()
+
+    if msg_box.clickedButton() == yes_button:
+        # 4. Pedir el identificador único.
+        dialog = InputDialog("Registrar Nuevo Calibrador", f"Ingrese el Identificador (cédula/código) para '{calibrator_name}':", main_window)
+        if dialog.exec() == QDialog.Accepted:
+            identifier = dialog.get_value().strip()
+            if not identifier:
+                QMessageBox.warning(main_window, "Dato Requerido", "El identificador no puede estar vacío.")
+                return False  # Creación fallida
+
+            try:
+                # 5. Añadir a la BD y seleccionar como activo.
+                new_id = main_window.db_manager.add_calibrator(nombre=calibrator_name, identificador=identifier)
+                QMessageBox.information(main_window, "Calibrador Registrado", f"El calibrador '{calibrator_name}' ha sido guardado.")
+                
+                new_calibrator_data = {
+                    'id': new_id, 'nombre': calibrator_name, 'identificador': identifier, 'imagen_path': None
+                }
+                main_window._on_calibrator_selected(new_calibrator_data)
+                return True # Éxito
+            except main_window.db_manager.conn.IntegrityError:
+                QMessageBox.warning(main_window, "Error", f"Ya existe un calibrador con el identificador '{identifier}'.")
+                return False
+            except Exception as e:
+                QMessageBox.critical(main_window, "Error en Base de Datos", f"Ocurrió un error al guardar el calibrador: {e}")
+                return False
+    
+    return False # El usuario eligió 'No' o canceló la entrada del identificador.

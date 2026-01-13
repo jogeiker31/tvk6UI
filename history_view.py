@@ -1,7 +1,8 @@
 import json
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
-    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QGroupBox, QAbstractItemView
+    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QGroupBox, QAbstractItemView,
+    QComboBox
 )
 from PySide6.QtCore import Qt
 
@@ -22,6 +23,8 @@ class HistoryView(QDialog):
         self.setMinimumSize(1000, 600)
 
         self.setup_ui()
+        self._populate_calibrator_filter()
+        self._populate_model_filter()
         self.load_history()
         self.apply_theme()
 
@@ -44,15 +47,14 @@ class HistoryView(QDialog):
         self.fecha_filter.setPlaceholderText("Ej: 2025-12-19")
         filter_layout.addWidget(self.fecha_filter)
 
+        # Reemplazar QLineEdit con QComboBox para el filtro de calibrador
         filter_layout.addWidget(QLabel("Calibrador:"))
-        self.calibrador_filter = QLineEdit()
-        self.calibrador_filter.setPlaceholderText("Buscar por nombre...")
-        filter_layout.addWidget(self.calibrador_filter)
+        self.calibrador_filter_combo = QComboBox()
+        filter_layout.addWidget(self.calibrador_filter_combo)
 
         filter_layout.addWidget(QLabel("Modelo:"))
-        self.modelo_filter = QLineEdit()
-        self.modelo_filter.setPlaceholderText("Buscar por modelo...")
-        filter_layout.addWidget(self.modelo_filter)
+        self.modelo_filter_combo = QComboBox()
+        filter_layout.addWidget(self.modelo_filter_combo)
 
         filter_layout.addStretch()
 
@@ -91,6 +93,28 @@ class HistoryView(QDialog):
         button_layout.addWidget(self.details_button)
         layout.addLayout(button_layout)
 
+    def _populate_calibrator_filter(self):
+        """Carga los calibradores en el QComboBox de filtro."""
+        self.calibrador_filter_combo.clear()
+        self.calibrador_filter_combo.addItem("Todos los calibradores")
+        try:
+            calibrators = self.db_manager.get_all_calibrators()
+            for calibrator in calibrators:
+                self.calibrador_filter_combo.addItem(calibrator['nombre'])
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"No se pudieron cargar los calibradores para el filtro: {e}")
+
+    def _populate_model_filter(self):
+        """Carga los modelos en el QComboBox de filtro."""
+        self.modelo_filter_combo.clear()
+        self.modelo_filter_combo.addItem("Todos los modelos")
+        try:
+            models = self.db_manager.get_all_models()
+            for model in models:
+                self.modelo_filter_combo.addItem(model['nombre'])
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"No se pudieron cargar los modelos para el filtro: {e}")
+
     def load_history(self, fecha=None, calibrador=None, modelo=None):
         """Carga los datos del historial en la tabla, aplicando filtros si se proporcionan."""
         try:
@@ -104,7 +128,8 @@ class HistoryView(QDialog):
                 self.table.setItem(row_idx, 0, id_item)
                 self.table.setItem(row_idx, 1, QTableWidgetItem(record['fecha']))
                 self.table.setItem(row_idx, 2, QTableWidgetItem(record['hora']))
-                self.table.setItem(row_idx, 3, QTableWidgetItem(record['calibrador']))
+                # Usar el campo 'calibrador_nombre' que viene del JOIN en la BD.
+                self.table.setItem(row_idx, 3, QTableWidgetItem(record.get('calibrador_nombre')))
                 self.table.setItem(row_idx, 4, QTableWidgetItem(record['modelo']))
                 self.table.setItem(row_idx, 5, QTableWidgetItem(str(record['constante'])))
                 self.table.setItem(row_idx, 6, QTableWidgetItem(str(record['tension'])))
@@ -114,15 +139,20 @@ class HistoryView(QDialog):
     def apply_filters(self):
         """Aplica los filtros introducidos por el usuario y recarga la tabla."""
         fecha = self.fecha_filter.text().strip() or None
-        calibrador = self.calibrador_filter.text().strip() or None
-        modelo = self.modelo_filter.text().strip() or None
+        
+        calibrador_text = self.calibrador_filter_combo.currentText()
+        calibrador = calibrador_text if calibrador_text != "Todos los calibradores" else None
+
+        modelo_text = self.modelo_filter_combo.currentText()
+        modelo = modelo_text if modelo_text != "Todos los modelos" else None
+
         self.load_history(fecha=fecha, calibrador=calibrador, modelo=modelo)
 
     def clear_filters(self):
         """Limpia los campos de filtro y recarga la tabla completa."""
         self.fecha_filter.clear()
-        self.calibrador_filter.clear()
-        self.modelo_filter.clear()
+        self.calibrador_filter_combo.setCurrentIndex(0)
+        self.modelo_filter_combo.setCurrentIndex(0)
         self.load_history()
 
     def on_selection_changed(self):

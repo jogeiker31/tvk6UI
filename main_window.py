@@ -68,12 +68,8 @@ class MainWindow(QMainWindow):
 
         self.current_theme = 'dark' # Tema por defecto
         self._find_widgets()
+        self._update_active_calibrator_display() # Actualizar estado inicial del panel de calibrador
 
-        # --- INICIO DE LA MODIFICACIÓN: Crear y añadir panel de calibrador ---
-        self._create_calibrator_panel()
-        # --- FIN DE LA MODIFICACIÓN ---
-
-        # --- INICIO DE LA MODIFICACIÓN: Añadir logo a la ventana principal ---
         logo_container = QHBoxLayout()
         logo_container.addStretch()
         logo_label = QLabel()
@@ -89,12 +85,9 @@ class MainWindow(QMainWindow):
         logo_container.addWidget(logo_label)
         logo_container.addStretch()
 
-        # Insertar el layout del logo en la parte superior del layout principal de la ventana.
         if self.ui.layout():
             self.ui.layout().insertLayout(0, logo_container)
-        # --- FIN DE LA MODIFICACIÓN ---
 
-        # Crear instancias de nuestros gestores de paneles
         self.measurement_panel = MeasurementPanel(self.ui)
         self.menu_manager = MenuManager(self.ui, self)
         self.screen_emulator = ScreenEmulator()
@@ -106,13 +99,10 @@ class MainWindow(QMainWindow):
 
         self._connect_signals()
 
-        # --- INICIO DE LA MODIFICACIÓN: Temporizador para procesar snapshots ---
         self.processing_timer = QTimer(self)
         self.processing_timer.setInterval(1000)  # ms de espera antes de procesar (2 segundos)
         self.processing_timer.setSingleShot(True)
         self.processing_timer.timeout.connect(self._process_screen_snapshot)
-        
-        # Configurar animaciones y efectos visuales
         self._setup_visual_effects()
 
         # Llenar la lista de puertos COM
@@ -126,64 +116,10 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("TVK6 Serial Console - Python 3.11 / PySide6")
 
-        # --- INICIO DE LA MODIFICACIÓN: Establecer tamaño de ventana ---
-        # Opción 1: Establecer un tamaño mínimo de 1020x700.
-        # Si prefieres esta opción, comenta la línea de showMaximized() y descomenta la siguiente:
-        # self.setMinimumSize(1020, 700)
-
-        # Opción 2: Iniciar la ventana maximizada (esta es la opción activa por defecto).
         self.showMaximized()
-        # --- FIN DE LA MODIFICACIÓN ---
 
         # Establecer la vista inicial (gráfica) y la visibilidad de los botones
         self.switch_view(is_console_mode=False)
-
-    def _create_calibrator_panel(self):
-        """Crea y añade el panel del calibrador activo a la UI dinámicamente."""
-        self.calibradorActivoGroupBox = QGroupBox("Calibrador")
-        calibrador_layout = QVBoxLayout()
-
-        # Widget para la imagen y los datos (inicialmente oculto)
-        self.details_widget = QWidget()
-        details_layout = QHBoxLayout(self.details_widget)
-        details_layout.setContentsMargins(0, 0, 0, 0)
-        self.imagenCalibrador = QLabel()
-        self.imagenCalibrador.setFixedSize(80, 60)
-        self.imagenCalibrador.setScaledContents(False) # Usar KeepAspectRatio
-        self.imagenCalibrador.setAlignment(Qt.AlignCenter)
-        self.imagenCalibrador.setStyleSheet("border: 1px solid #555; border-radius: 4px;")
-
-        text_layout = QVBoxLayout()
-        self.valorNombreCalibrador = QLabel("Nombre no disponible")
-        self.valorNombreCalibrador.setStyleSheet("font-weight: bold;")
-        self.valorIdCalibrador = QLabel("ID: ---")
-        text_layout.addWidget(self.valorNombreCalibrador)
-        text_layout.addWidget(self.valorIdCalibrador)
-
-        details_layout.addWidget(self.imagenCalibrador)
-        details_layout.addLayout(text_layout)
-        details_layout.addStretch()
-
-        # Botón para seleccionar
-        self.btnSeleccionarCalibrador = QPushButton("Seleccionar Calibrador")
-        self.btnSeleccionarCalibrador.setStyleSheet("background-color: #007bff; color: white;")
-
-        calibrador_layout.addWidget(self.details_widget)
-        calibrador_layout.addWidget(self.btnSeleccionarCalibrador)
-        self.calibradorActivoGroupBox.setLayout(calibrador_layout)
-
-        # Encontrar el layout del panel derecho y añadir el nuevo groupbox
-        if self.medidorActivoGroupBox and self.medidorActivoGroupBox.parentWidget():
-            parent_layout = self.medidorActivoGroupBox.parentWidget().layout()
-            if parent_layout:
-                # Encontramos el índice del medidorActivoGroupBox para insertar el nuevo antes
-                for i in range(parent_layout.count()):
-                    item = parent_layout.itemAt(i)
-                    if item and item.widget() == self.medidorActivoGroupBox:
-                        parent_layout.insertWidget(i, self.calibradorActivoGroupBox)
-                        break
-        
-        self._update_active_calibrator_display() # Actualizar estado inicial
 
     def _find_widgets(self):
         """Encuentra y asigna todos los widgets de la UI a atributos de la clase."""
@@ -201,31 +137,37 @@ class MainWindow(QMainWindow):
         self.btnLimpiarMonitor = self.ui.findChild(QPushButton, 'btnLimpiarMonitor')
         self.btnGestionarModelos = self.ui.findChild(QPushButton, 'btnGestionarModelos')
 
-        # --- INICIO DE LA MODIFICACIÓN: Widgets del panel Medidor Activo ---
+        # Widgets del panel Medidor Activo
         self.valorModelo = self.ui.findChild(QLabel, 'valorModelo')
         self.imagenMedidor = self.ui.findChild(QLabel, 'imagenMedidor')
 
-        # Se deriva la referencia al GroupBox a partir de uno de sus hijos ('valorModelo').
-        # Esto es más robusto en caso de que el nombre del objeto 'medidorActivoGroupBox'
-        # en el archivo .ui sea incorrecto o haya cambiado. Si podemos encontrar el QLabel
-        # interno, podemos encontrar su contenedor.
+        # Widgets del panel Calibrador Activo (ahora definidos en el .ui)
+        self.calibradorActivoGroupBox = self.ui.findChild(QGroupBox, 'calibradorActivoGroupBox')
+        self.details_widget = self.ui.findChild(QWidget, 'calibratorDetailsWidget')
+        self.imagenCalibrador = self.ui.findChild(QLabel, 'imagenCalibrador')
+        self.valorNombreCalibrador = self.ui.findChild(QLabel, 'valorNombreCalibrador')
+        self.valorIdCalibrador = self.ui.findChild(QLabel, 'valorIdCalibrador')
+        self.btnSeleccionarCalibrador = self.ui.findChild(QPushButton, 'btnSeleccionarCalibrador')
+
+        # Derivar la referencia al GroupBox del medidor activo
         if self.valorModelo:
-            self.medidorActivoGroupBox = self.valorModelo.parentWidget()
+            parent = self.valorModelo.parentWidget()
+            while parent and not isinstance(parent, QGroupBox):
+                parent = parent.parentWidget()
+            self.medidorActivoGroupBox = parent # Será el QGroupBox o None si no se encuentra
         else:
             self.medidorActivoGroupBox = self.ui.findChild(QGroupBox, 'medidorActivoGroupBox')
+
         # Widgets para el cambio de vista
         self.viewSwitcher = self.ui.findChild(QCheckBox, 'viewSwitcher')
-        # --- INICIO DE LA MODIFICACIÓN: Ocultar checkbox de la ventana principal ---
         if self.viewSwitcher:
             self.viewSwitcher.setVisible(False)
         self.graphicViewTitle = self.ui.findChild(QLabel, 'graphicViewTitle')
         self.viewStackedWidget = self.ui.findChild(QStackedWidget, 'viewStackedWidget')
-        # --- INICIO DE LA MODIFICACIÓN: Widget para la vista de calibración ---
-        # Referencia al label genérico para poder ocultarlo
+
         self.customGraphicLayout = self.ui.findChild(QVBoxLayout, 'customGraphicLayout')
         self.calibration_table_view = CalibrationTableView(rows=2, cols=10)
         self.customGraphicLayout.insertWidget(0, self.calibration_table_view) # Añadirlo al layout
-        # --- INICIO DE LA MODIFICACIÓN: Cabecera de Datos Medidor ---
         self.datosMedidorHeader = self.ui.findChild(QFrame, 'datosMedidorHeader')
         self.valorDatosX = self.ui.findChild(QLabel, 'valorDatosX')
         self.valorDatosK = self.ui.findChild(QLabel, 'valorDatosK')
@@ -252,14 +194,11 @@ class MainWindow(QMainWindow):
         self.valorCalibI1A = self.ui.findChild(QLabel, 'valorCalibI1A')
         self.calibrationHeader.setVisible(False) # Oculto por defecto
         self.datosMedidorHeader.setVisible(False) # Oculto por defecto
-        # --- FIN DE LA MODIFICACIÓN ---
         self.calibration_table_view.setVisible(False) # Oculto por defecto
-        # --- FIN DE LA MODIFICACIÓN ---
-        # --- INICIO DE LA MODIFICACIÓN: Loader Overlay ---
+
         self.loadingOverlay = self.ui.findChild(QFrame, 'loadingOverlay')
         self.loadingLabel = self.ui.findChild(QLabel, 'loadingLabel')
         self.hide_loader() # Asegurarse de que esté oculto al inicio
-        # --- FIN DE LA MODIFICACIÓN ---
 
     def _connect_signals(self):
         """Conecta todas las señales de la UI a sus respectivos slots."""
@@ -277,7 +216,7 @@ class MainWindow(QMainWindow):
         self.btnConfiguracion.clicked.connect(lambda: open_settings_dialog(self))
         self.btnGestionarModelos.clicked.connect(lambda: open_model_manager(self))
         if hasattr(self, 'btnSeleccionarCalibrador'):
-            self.btnSeleccionarCalibrador.clicked.connect(lambda: open_calibrator_manager(self))
+            self.btnSeleccionarCalibrador.clicked.connect(lambda: open_calibrator_manager(self)) # La conexión ahora es más simple
         self.state_manager.clear_screen_requested.connect(self.clear_monitor) # Conectar la nueva señal
         self.ui.btnHistorial.clicked.connect(lambda: open_history_view(self)) # Mantenemos el historial
         # El interruptor de vista ahora se gestiona desde el diálogo de configuración.
@@ -318,6 +257,7 @@ class MainWindow(QMainWindow):
         self.current_calibrator_data = data
         self._update_active_calibrator_display()
 
+    @Slot()
     def _update_active_calibrator_display(self):
         """Actualiza el panel del calibrador activo con nombre, ID e imagen."""
         if not self.current_calibrator_data:
@@ -325,6 +265,7 @@ class MainWindow(QMainWindow):
             self.details_widget.setVisible(False)
             self.btnSeleccionarCalibrador.setText("Seleccionar Calibrador")
         else:
+            self.btnSeleccionarCalibrador.setStyleSheet("background-color: #007bff; color: white;")
             # Estado "seleccionado"
             self.valorNombreCalibrador.setText(self.current_calibrator_data.get('nombre', 'N/A'))
             self.valorIdCalibrador.setText(f"ID: {self.current_calibrator_data.get('identificador', '---')}")
@@ -337,7 +278,6 @@ class MainWindow(QMainWindow):
                 ))
             else:
                 self.imagenCalibrador.clear()
-                self.imagenCalibrador.setPixmap(QPixmap())
 
             self.details_widget.setVisible(True)
             self.btnSeleccionarCalibrador.setText("Cambiar Calibrador")
@@ -765,11 +705,11 @@ class MainWindow(QMainWindow):
         if event.type() == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
             # Panel del Medidor
             if watched in [self.valorModelo, self.imagenMedidor]:
-                self.open_model_manager()
+                open_model_manager(self)
                 return True  # Evento manejado
             # Panel del Calibrador
             if hasattr(self, 'imagenCalibrador') and watched in [self.imagenCalibrador, self.valorNombreCalibrador, self.valorIdCalibrador]:
-                self.open_calibrator_manager()
+                open_calibrator_manager(self)
                 return True # Evento manejado
         
         return super().eventFilter(watched, event)

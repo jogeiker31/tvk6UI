@@ -90,6 +90,14 @@ class DatabaseManager:
                 cursor.execute("ALTER TABLE calibracion_history ADD COLUMN temperatura TEXT")
                 self.conn.commit()
 
+            # Migración: Añadir columna 'calibrador_id' a 'calibracion_history' si no existe
+            cursor.execute("PRAGMA table_info(calibracion_history)")
+            columns = [info['name'] for info in cursor.fetchall()]
+            if 'calibrador_id' not in columns:
+                print("INFO: Aplicando migración -> Añadiendo columna 'calibrador_id' a la tabla 'calibracion_history'.")
+                cursor.execute("ALTER TABLE calibracion_history ADD COLUMN calibrador_id INTEGER REFERENCES calibradores(id)")
+                self.conn.commit()
+
             # Migración: Añadir columna 'imagen_path' a 'modelos' si no existe
             cursor.execute("PRAGMA table_info(modelos)")
             modelos_columns = [info['name'] for info in cursor.fetchall()]
@@ -157,6 +165,13 @@ class DatabaseManager:
         cursor.execute("SELECT * FROM modelos ORDER BY nombre")
         return cursor.fetchall()
 
+    def get_model_by_name(self, nombre):
+        """Recupera un modelo por su nombre."""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM modelos WHERE nombre = ?", (nombre,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
     def update_model(self, model_id, nombre, constante, k, ds, di, imagen_path=None):
         """Actualiza un modelo existente."""
         sql = '''UPDATE modelos
@@ -190,6 +205,13 @@ class DatabaseManager:
         cursor.execute("SELECT * FROM calibradores ORDER BY nombre")
         return cursor.fetchall()
 
+    def get_calibrator_by_name(self, nombre):
+        """Recupera un calibrador por su nombre. Devuelve el primero que encuentra."""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM calibradores WHERE nombre = ?", (nombre,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
     def update_calibrator(self, calibrator_id, nombre, identificador, imagen_path=None):
         """Actualiza un calibrador existente."""
         sql = '''UPDATE calibradores
@@ -211,50 +233,68 @@ class DatabaseManager:
         if self.conn:
             self.conn.close()
 
-    def save_calibration_data(self, fecha, hora, calibrador, constante, modelo, tension, intensidad, di, ds, tabla_calibracion, temperatura=None):
+    def save_calibration_data(self, fecha, hora, calibrador_id, constante, modelo, tension, intensidad, di, ds, tabla_calibracion, temperatura=None):
         """Guarda los datos de calibración en la tabla 'calibracion_history'."""
-        sql = '''INSERT INTO calibracion_history(fecha, hora, calibrador, constante, modelo, tension, intensidad, di, ds, tabla_calibracion, temperatura)
+        # El campo 'calibrador' (texto) se deja en blanco para nuevos registros, se usará calibrador_id.
+        sql = '''INSERT INTO calibracion_history(fecha, hora, calibrador_id, constante, modelo, tension, intensidad, di, ds, tabla_calibracion, temperatura)
                  VALUES(?,?,?,?,?,?,?,?,?,?,?)'''
         cursor = self.conn.cursor()
-        cursor.execute(sql, (fecha, hora, calibrador, constante, modelo, tension, intensidad, di, ds, tabla_calibracion, temperatura))
+        cursor.execute(sql, (fecha, hora, calibrador_id, constante, modelo, tension, intensidad, di, ds, tabla_calibracion, temperatura))
         self.conn.commit()
 
     def get_all_calibration_data(self, fecha=None, calibrador=None, modelo=None):
         """
         Recupera todos los datos de calibración de la tabla 'calibracion_history',
-        con opción de filtrar por fecha, calibrador y modelo.
+        con opción de filtrar por fecha, calibrador y modelo. Ahora une con la
+        tabla de calibradores para obtener el nombre.
         """
         cursor = self.conn.cursor()
         
-        query = "SELECT * FROM calibracion_history"
+        # Usamos COALESCE para mostrar el nombre del calibrador desde la tabla de calibradores si existe el ID,
+        # o el nombre antiguo del campo de texto si no (para datos antiguos).
+        query = """
+            SELECT 
+                h.*, 
+                COALESCE(c.nombre, h.calibrador) as calibrador_nombre
+            FROM calibracion_history h
+            LEFT JOIN calibradores c ON h.calibrador_id = c.id
+        """
         conditions = []
         params = []
 
         if fecha:
-            conditions.append("fecha = ?")
+            conditions.append("h.fecha = ?")
             params.append(fecha)
         
         if calibrador:
-            # Usamos LIKE para búsquedas parciales y sin distinción de mayúsculas/minúsculas
-            conditions.append("LOWER(calibrador) LIKE ?")
+            # La búsqueda ahora se hace sobre el nombre del calibrador (nuevo o antiguo)
+            conditions.append("LOWER(COALESCE(c.nombre, h.calibrador)) LIKE ?")
             params.append(f"%{calibrador.lower()}%")
 
         if modelo:
-            conditions.append("LOWER(modelo) LIKE ?")
+            conditions.append("LOWER(h.modelo) LIKE ?")
             params.append(f"%{modelo.lower()}%")
 
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
 
-        query += " ORDER BY fecha DESC, hora DESC"
+        query += " ORDER BY h.fecha DESC, h.hora DESC"
         
         cursor.execute(query, tuple(params))
         rows = cursor.fetchall()
         return [dict(row) for row in rows]  # Convertir sqlite3.Row a diccionario
 
     def get_calibration_data(self, calibration_id):
-        """Recupera los datos de calibración por ID."""
+        """Recupera los datos de calibración por ID, uniendo con la tabla de calibradores."""
         cursor = self.conn.cursor()
-        cursor.execute("SELECT * FROM calibracion_history WHERE id = ?", (calibration_id,))
+        query = """
+            SELECT 
+                h.*, 
+                COALESCE(c.nombre, h.calibrador) as calibrador_nombre
+            FROM calibracion_history h
+            LEFT JOIN calibradores c ON h.calibrador_id = c.id
+            WHERE h.id = ?
+        """
+        cursor.execute(query, (calibration_id,))
         row = cursor.fetchone()
         return dict(row) if row else None

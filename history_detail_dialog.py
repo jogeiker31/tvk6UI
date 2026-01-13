@@ -65,7 +65,8 @@ class HistoryDetailDialog(QDialog):
         # Fila 1
         header_layout.addWidget(QLabel(f"<b>Fecha:</b><br>{self.calibration_data.get('fecha', 'N/A')}"), 0, 0)
         header_layout.addWidget(QLabel(f"<b>Hora:</b><br>{self.calibration_data.get('hora', 'N/A')}"), 0, 1)
-        header_layout.addWidget(QLabel(f"<b>Calibrador:</b><br>{self.calibration_data.get('calibrador', 'N/A')}"), 0, 2)
+        # Usar el campo 'calibrador_nombre' que viene del JOIN en la BD.
+        header_layout.addWidget(QLabel(f"<b>Calibrador:</b><br>{self.calibration_data.get('calibrador_nombre', 'N/A')}"), 0, 2)
         
         # Fila 2
         header_layout.addWidget(QLabel(f"<b>Modelo:</b><br>{self.calibration_data.get('modelo', 'N/A')}"), 1, 0)
@@ -169,8 +170,11 @@ class HistoryDetailDialog(QDialog):
         """
         Prepara los datos y llama a la función de generación de PDF.
         """
-        # Los datos del certificado son los que ya tenemos en self.calibration_data
-        certificate_data = self.calibration_data
+        # Los datos del certificado son los que ya tenemos en self.calibration_data.
+        # Nos aseguramos de que el diccionario para el PDF use la clave 'calibrador'
+        # que es la que espera pdf_generator, tomando el valor de 'calibrador_nombre'.
+        pdf_data = dict(self.calibration_data)
+        pdf_data['calibrador'] = self.calibration_data.get('calibrador_nombre', 'N/A')
 
         # La tabla de valores necesita ser parseada desde el JSON
         try:
@@ -179,5 +183,6 @@ class HistoryDetailDialog(QDialog):
         except (json.JSONDecodeError, TypeError):
             table_values = [] # En caso de error, pasamos una tabla vacía
 
-        # Llamamos a la función que genera el PDF, usando 'self' como padre para los diálogos
-        generate_certificate_pdf(self, certificate_data, table_values)
+        # Llamamos a la función que genera el PDF, usando 'self' como padre para
+        # los diálogos y pasamos el diccionario adaptado.
+        generate_certificate_pdf(self, pdf_data, table_values)
