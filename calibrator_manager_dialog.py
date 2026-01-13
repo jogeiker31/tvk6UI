@@ -17,17 +17,23 @@ class CalibratorManagerDialog(QDialog):
     # Señal que se emitirá con los datos del calibrador seleccionado
     calibrator_selected = Signal(dict)
 
-    def __init__(self, db_manager: DatabaseManager, parent=None):
+    def __init__(self, db_manager: DatabaseManager, parent=None, initial_selection_mode=False):
         super().__init__(parent)
         self.db = db_manager
         self.current_calibrator_id = None
         self.current_image_path = None # Para guardar la ruta de la imagen seleccionada
+        self.initial_selection_mode = initial_selection_mode
+
+        if self.initial_selection_mode:
+            self.setWindowTitle("Seleccione un Calibrador para Iniciar")
+            self.setWindowFlag(Qt.WindowCloseButtonHint, False)
+        else:
+            self.setWindowTitle("Gestor de Calibradores")
 
         # Crear directorio para almacenar las imágenes de los calibradores
         self.images_dir = get_app_data_path() / "calibrator_images"
         self.images_dir.mkdir(parents=True, exist_ok=True)
 
-        self.setWindowTitle("Gestor de Calibradores")
         self.setMinimumSize(1024, 720)
         
         self.setup_ui()
@@ -281,3 +287,11 @@ class CalibratorManagerDialog(QDialog):
                 'imagen_path': imagen_path
             })
             self.accept() # Cierra el diálogo
+
+    def keyPressEvent(self, event):
+        """Sobrescribe para bloquear la tecla Escape en el modo de selección inicial."""
+        if self.initial_selection_mode and event.key() == Qt.Key_Escape:
+            QMessageBox.warning(self, "Selección Requerida", "Debe seleccionar o crear un calibrador para continuar.")
+            event.ignore()
+        else:
+            super().keyPressEvent(event)

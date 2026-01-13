@@ -22,6 +22,7 @@ from menu_manager import MenuManager
 from state_manager import StateManager
 from database import DatabaseManager
 from ui_model_manager import ModelManagerDialog
+from calibrator_manager_dialog import CalibratorManagerDialog
 from calibration_view import CalibrationTableView
 from ui_input_dialog import InputDialog
 from sequence_manager import SequenceManager
@@ -120,6 +121,9 @@ class MainWindow(QMainWindow):
 
         # Establecer la vista inicial (gráfica) y la visibilidad de los botones
         self.switch_view(is_console_mode=False)
+
+        # Forzar la selección de un calibrador al inicio
+        self.select_initial_calibrator()
 
     def _find_widgets(self):
         """Encuentra y asigna todos los widgets de la UI a atributos de la clase."""
@@ -291,6 +295,22 @@ class MainWindow(QMainWindow):
         else:
             self.ui.setStyleSheet(LIGHT_THEME)
         # Podríamos necesitar reaplicar estilos específicos si se pierden
+
+    def select_initial_calibrator(self):
+        """
+        Fuerza al usuario a seleccionar un calibrador al iniciar la aplicación.
+        El diálogo no se puede cerrar hasta que se seleccione uno.
+        """
+        if not self.current_calibrator_data:
+            QMessageBox.information(self, "Bienvenido", "Para comenzar, por favor seleccione el calibrador que realizará el trabajo.")
+            
+            dialog = CalibratorManagerDialog(self.db_manager, self, initial_selection_mode=True)
+            dialog.calibrator_selected.connect(self._on_calibrator_selected)
+            dialog.exec()
+            
+            # Si por alguna razón el diálogo se cierra sin seleccionar, cerramos la app.
+            if not self.current_calibrator_data:
+                self.close()
 
     def _setup_visual_effects(self):
         """Configura animaciones y otros efectos para los widgets."""
