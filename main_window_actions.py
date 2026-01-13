@@ -19,6 +19,7 @@ from history_view import HistoryView
 from ui_input_dialog import InputDialog
 from certificate_dialog import CertificateDialog
 from pdf_generator import generate_certificate_pdf
+from serials_dialog import SerialsDialog
 
 def open_settings_dialog(main_window):
     """Abre el diálogo de configuración."""
@@ -139,7 +140,9 @@ def handle_save_protocol(main_window):
         'constante': main_window.state_manager.parsed_values.get('X', '---'),
         'tension': main_window.state_manager.parsed_values.get('U1', '---'),
         'intensidad': main_window.state_manager.parsed_values.get('I1', '---'),
-        'calibrador': main_window.current_calibrator_data.get('nombre', '')
+        'calibrador': main_window.current_calibrator_data.get('nombre', ''),
+        'di': main_window.state_manager.parsed_values.get('di', 'N/A'),
+        'ds': main_window.state_manager.parsed_values.get('ds', 'N/A')
     }
     
     dialog = CertificateDialog(prefill_data, main_window)
@@ -152,6 +155,14 @@ def handle_save_protocol(main_window):
         model_name = cert_data.get('modelo')
         _check_and_register_model_if_new(main_window, model_name)
         
+        # --- Pedir seriales (opcional) ---
+        table_values = main_window.calibration_table_view.get_all_values()
+        serials_dialog = SerialsDialog(table_values, main_window)
+        serials_data = {}
+        if serials_dialog.exec() == QDialog.Accepted:
+            serials_data = serials_dialog.get_serials()
+        seriales_json = json.dumps(serials_data)
+
         # Obtener el ID del calibrador en lugar del nombre.
         calibrador_id = main_window.current_calibrator_data.get('id')
         if not calibrador_id:
@@ -174,15 +185,15 @@ def handle_save_protocol(main_window):
 
         # Llamar a save_calibration_data con el ID del calibrador.
         main_window.db_manager.save_calibration_data(
-            fecha, hora, calibrador_id, constante, modelo, tension, 
-            intensidad, di, ds, table_json, temperatura=temperatura
+            fecha, hora, calibrador_id, constante, modelo, tension,
+            intensidad, di, ds, table_json, temperatura=temperatura,
+            seriales_medidores=seriales_json
         )
 
         # --- 2. Imprimir opcionalmente ---
         if dialog.should_print():
             # La función de PDF ya muestra un mensaje de éxito/error.
-            table_values = main_window.calibration_table_view.get_all_values()
-            generate_certificate_pdf(main_window, cert_data, table_values)
+            generate_certificate_pdf(main_window, cert_data, table_values, serials_data)
         else:
             # Si solo guardamos, mostramos un mensaje de confirmación.
             QMessageBox.information(

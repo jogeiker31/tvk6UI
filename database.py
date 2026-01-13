@@ -98,6 +98,13 @@ class DatabaseManager:
                 cursor.execute("ALTER TABLE calibracion_history ADD COLUMN calibrador_id INTEGER REFERENCES calibradores(id)")
                 self.conn.commit()
 
+            # Migración: Añadir columna 'seriales_medidores' a 'calibracion_history' si no existe
+            cursor.execute("PRAGMA table_info(calibracion_history)")
+            columns = [info['name'] for info in cursor.fetchall()]
+            if 'seriales_medidores' not in columns:
+                print("INFO: Aplicando migración -> Añadiendo columna 'seriales_medidores' a la tabla 'calibracion_history'.")
+                cursor.execute("ALTER TABLE calibracion_history ADD COLUMN seriales_medidores TEXT")
+
             # Migración: Añadir columna 'imagen_path' a 'modelos' si no existe
             cursor.execute("PRAGMA table_info(modelos)")
             modelos_columns = [info['name'] for info in cursor.fetchall()]
@@ -233,13 +240,13 @@ class DatabaseManager:
         if self.conn:
             self.conn.close()
 
-    def save_calibration_data(self, fecha, hora, calibrador_id, constante, modelo, tension, intensidad, di, ds, tabla_calibracion, temperatura=None):
+    def save_calibration_data(self, fecha, hora, calibrador_id, constante, modelo, tension, intensidad, di, ds, tabla_calibracion, temperatura=None, seriales_medidores=None):
         """Guarda los datos de calibración en la tabla 'calibracion_history'."""
         # El campo 'calibrador' (texto) se deja en blanco para nuevos registros, se usará calibrador_id.
-        sql = '''INSERT INTO calibracion_history(fecha, hora, calibrador_id, constante, modelo, tension, intensidad, di, ds, tabla_calibracion, temperatura)
-                 VALUES(?,?,?,?,?,?,?,?,?,?,?)'''
+        sql = '''INSERT INTO calibracion_history(fecha, hora, calibrador_id, constante, modelo, tension, intensidad, di, ds, tabla_calibracion, temperatura, seriales_medidores)
+                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?)'''
         cursor = self.conn.cursor()
-        cursor.execute(sql, (fecha, hora, calibrador_id, constante, modelo, tension, intensidad, di, ds, tabla_calibracion, temperatura))
+        cursor.execute(sql, (fecha, hora, calibrador_id, constante, modelo, tension, intensidad, di, ds, tabla_calibracion, temperatura, seriales_medidores))
         self.conn.commit()
 
     def get_all_calibration_data(self, fecha=None, calibrador=None, modelo=None):

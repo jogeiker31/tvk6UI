@@ -298,19 +298,41 @@ class MainWindow(QMainWindow):
 
     def select_initial_calibrator(self):
         """
-        Fuerza al usuario a seleccionar un calibrador al iniciar la aplicación.
-        El diálogo no se puede cerrar hasta que se seleccione uno.
+        Fuerza al usuario a seleccionar un calibrador y luego pregunta si desea
+        iniciar una calibración rápida.
         """
         if not self.current_calibrator_data:
             QMessageBox.information(self, "Bienvenido", "Para comenzar, por favor seleccione el calibrador que realizará el trabajo.")
-            
+
             dialog = CalibratorManagerDialog(self.db_manager, self, initial_selection_mode=True)
             dialog.calibrator_selected.connect(self._on_calibrator_selected)
             dialog.exec()
-            
+
             # Si por alguna razón el diálogo se cierra sin seleccionar, cerramos la app.
             if not self.current_calibrator_data:
                 self.close()
+                return # Salir para evitar ejecutar el prompt
+
+            # Si llegamos aquí, un calibrador fue seleccionado.
+            self._prompt_for_quick_calibration()
+
+    def _prompt_for_quick_calibration(self):
+        """
+        Pregunta al usuario si desea iniciar una calibración rápida seleccionando un modelo.
+        """
+        msg_box = QMessageBox(self)
+        msg_box.setIcon(QMessageBox.Question)
+        msg_box.setWindowTitle("Calibración Rápida")
+        msg_box.setText("¿Desea seleccionar un medidor ya registrado para iniciar una calibración rápida?")
+
+        yes_button = msg_box.addButton("Sí, seleccionar medidor", QMessageBox.ButtonRole.YesRole)
+        no_button = msg_box.addButton("No, continuar manualmente", QMessageBox.ButtonRole.NoRole)
+        msg_box.setDefaultButton(yes_button)
+
+        msg_box.exec()
+
+        if msg_box.clickedButton() == yes_button:
+            open_model_manager(self)
 
     def _setup_visual_effects(self):
         """Configura animaciones y otros efectos para los widgets."""

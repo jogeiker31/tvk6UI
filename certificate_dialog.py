@@ -55,6 +55,8 @@ class CertificateDialog(QDialog):
         self.constante_label = QLabel(prefill_data.get('constante', '---'))
         self.tension_label = QLabel(prefill_data.get('tension', '---'))
         self.intensidad_label = QLabel(prefill_data.get('intensidad', '---'))
+        self.di_label = QLabel(prefill_data.get('di', '---'))
+        self.ds_label = QLabel(prefill_data.get('ds', '---'))
 
         # Añadir campos al formulario
         form_layout.addRow("Fecha:", self.fecha_label)
@@ -64,6 +66,8 @@ class CertificateDialog(QDialog):
         form_layout.addRow("Modelo Medidor:", self.modelo_input)
         form_layout.addRow("Constante Medidor (X):", self.constante_label)
         form_layout.addRow("Tensión Nominal (U1):", self.tension_label)
+        form_layout.addRow("Límite Inferior (di):", self.di_label)
+        form_layout.addRow("Límite Superior (ds):", self.ds_label)
         form_layout.addRow("Intensidad Nominal (I1):", self.intensidad_label)
 
         form_group.setLayout(form_layout)
@@ -96,5 +100,7 @@ class CertificateDialog(QDialog):
             "modelo": self.modelo_input.text(),
             "constante": self.constante_label.text(),
             "tension": self.tension_label.text(),
-            "intensidad": self.intensidad_label.text()
+            "intensidad": self.intensidad_label.text(),
+            "di": self.di_label.text(),
+            "ds": self.ds_label.text()
         }

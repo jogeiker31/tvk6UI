@@ -86,14 +86,14 @@ class HistoryDetailDialog(QDialog):
         main_layout.addWidget(header_group)
 
         # 3. Tabla de resultados
-        results_group = QGroupBox("Resultados de la Calibración")
-        results_layout = QGridLayout()
+        results_group = QGroupBox("Resultados de la Calibración (✓: Pasa, ✗: Falla)")
+        results_layout = QGridLayout() # No hay cambios aquí
         results_layout.setSpacing(10)
 
         # Cabeceras de la tabla
-        results_layout.addWidget(QLabel("<b>Medición</b>"), 0, 0, Qt.AlignCenter)
+        results_layout.addWidget(QLabel("<b>Puesto / Serial</b>"), 0, 0, Qt.AlignCenter)
         results_layout.addWidget(QLabel("<b>Valor</b>"), 0, 1, Qt.AlignCenter)
-        results_layout.addWidget(QLabel("<b>Medición</b>"), 0, 2, Qt.AlignCenter)
+        results_layout.addWidget(QLabel("<b>Puesto / Serial</b>"), 0, 2, Qt.AlignCenter)
         results_layout.addWidget(QLabel("<b>Valor</b>"), 0, 3, Qt.AlignCenter)
         
         try:
@@ -101,25 +101,42 @@ class HistoryDetailDialog(QDialog):
             table_values = json.loads(table_values_json)
             di_val = float(self.calibration_data.get('di'))
             ds_val = float(self.calibration_data.get('ds'))
+            seriales_json = self.calibration_data.get('seriales_medidores', '{}')
+            self.seriales_data = json.loads(seriales_json)
         except (ValueError, TypeError, json.JSONDecodeError):
             table_values = []
             di_val, ds_val = None, None
+            self.seriales_data = {}
 
         flat_values = [item for sublist in table_values for item in sublist]
         num_items_per_col = (len(flat_values) + 1) // 2
 
         for i in range(num_items_per_col):
-            # Columna 1 (Medición y Valor)
+            # --- Columna 1 (Puesto y Valor) ---
+            puesto1_num = str(i + 1)
+            serial1 = self.seriales_data.get(puesto1_num, '')
+            # Puesto más pequeño, S/N más grande y en negrita
+            puesto1_text = f"<span style='font-size: 8pt;'>{puesto1_num}</span>" + (f" <b style='font-size: 10pt;'>S/N: {serial1}</b>" if serial1 else "")
+            puesto1_label = QLabel(puesto1_text)
+            puesto1_label.setAlignment(Qt.AlignCenter)
+
             val1_str = flat_values[i] if i < len(flat_values) else ''
             if val1_str and val1_str != '---':
-                results_layout.addWidget(QLabel(str(i + 1)), i + 1, 0, Qt.AlignCenter)
-                results_layout.addWidget(self.create_styled_value_label(val1_str, di_val, ds_val), i + 1, 1)
+                results_layout.addWidget(puesto1_label, i + 1, 0)
+                results_layout.addWidget(self.create_styled_value_label(val1_str, di_val, ds_val), i + 1, 1) # Modificado para incluir ✓/✗
 
-            # Columna 2 (Medición y Valor)
+            # --- Columna 2 (Puesto y Valor) ---
             idx2 = i + num_items_per_col
+            puesto2_num = str(idx2 + 1)
+            serial2 = self.seriales_data.get(puesto2_num, '')
+            # Puesto más pequeño, S/N más grande y en negrita
+            puesto2_text = f"<span style='font-size: 8pt;'>{puesto2_num}</span>" + (f" <b style='font-size: 10pt;'>S/N: {serial2}</b>" if serial2 else "")
+            puesto2_label = QLabel(puesto2_text)
+            puesto2_label.setAlignment(Qt.AlignCenter)
+
             val2_str = flat_values[idx2] if idx2 < len(flat_values) else ''
             if val2_str and val2_str != '---':
-                results_layout.addWidget(QLabel(str(idx2 + 1)), i + 1, 2, Qt.AlignCenter)
+                results_layout.addWidget(puesto2_label, i + 1, 2)
                 results_layout.addWidget(self.create_styled_value_label(val2_str, di_val, ds_val), i + 1, 3)
 
         results_group.setLayout(results_layout)
@@ -142,7 +159,7 @@ class HistoryDetailDialog(QDialog):
         label = QLabel(value_str)
         label.setAlignment(Qt.AlignCenter)
         label.setMinimumHeight(30)
-        
+
         base_style = "font-weight: bold; border-radius: 4px; padding: 5px;"
         color_style = "background-color: #777; color: white;" # Gris por defecto para no numéricos
 
@@ -150,8 +167,10 @@ class HistoryDetailDialog(QDialog):
             try:
                 value = float(value_str)
                 if di <= value <= ds:
+                    label.setText(f"{value_str} ✓") # Añadir checkmark
                     color_style = "background-color: #28a745; color: white;" # Verde
                 else:
+                    label.setText(f"{value_str} ✗") # Añadir X
                     color_style = "background-color: #dc3545; color: white;" # Rojo
             except (ValueError, TypeError):
                 pass # Mantener estilo por defecto si no es un número
@@ -185,4 +204,5 @@ class HistoryDetailDialog(QDialog):
 
         # Llamamos a la función que genera el PDF, usando 'self' como padre para
         # los diálogos y pasamos el diccionario adaptado.
-        generate_certificate_pdf(self, pdf_data, table_values)
+        # Pasamos self.seriales_data, que ya fue parseado en setup_ui.
+        generate_certificate_pdf(self, pdf_data, table_values, self.seriales_data)
