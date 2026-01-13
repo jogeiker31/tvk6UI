@@ -8,8 +8,9 @@ acceder a sus widgets, gestores y estado.
 """
 import os
 import json
+import time
 import datetime
-from PySide6.QtWidgets import QDialog, QMessageBox
+from PySide6.QtWidgets import QDialog, QMessageBox, QApplication
 
 # Importaciones de la aplicación
 from settings_dialog import SettingsDialog
@@ -48,8 +49,29 @@ def open_history_view(main_window):
 
 def run_calibration_sequence(main_window, params):
     """Construye y ejecuta la secuencia de calibración rápida."""
+    # --- INICIO DE LA MODIFICACIÓN: Verificar conexión antes de iniciar ---
     main_window.show_loader()
     main_window._set_ui_enabled(False)
+
+    if main_window.state_manager.get_current_state_name() == 'INIT':
+        main_window.loadingLabel.setText("Esperando conexión con TVK6...")
+        QApplication.processEvents()
+
+        start_time = time.time()
+        connection_established = False
+        while time.time() - start_time < 10: # Timeout de 10 segundos
+            QApplication.processEvents() # Permite que la UI procese la señal de conexión
+            if main_window.state_manager.get_current_state_name() != 'INIT':
+                connection_established = True
+                break
+            time.sleep(0.1)
+
+        if not connection_established:
+            main_window.hide_loader()
+            main_window._set_ui_enabled(True)
+            QMessageBox.warning(main_window, "Error de Conexión", "No se pudo establecer la conexión con el TVK6. La secuencia ha sido cancelada.")
+            return
+    # --- FIN DE LA MODIFICACIÓN ---
 
     if isinstance(params, dict):
         x_value = str(params['constante'])

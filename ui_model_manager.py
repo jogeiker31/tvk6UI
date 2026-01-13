@@ -314,5 +314,7 @@ class ModelManagerDialog(QDialog):
         model_data = self.get_form_data()
         if model_data:
             nombre, constante, k, ds, di, imagen_path = model_data
+            # Primero cerramos el diálogo para que la ventana principal sea visible
+            self.accept()
+            # Luego emitimos la señal para que comience la secuencia (y el loader)
             self.start_calibration_requested.emit({'nombre': nombre, 'constante': constante, 'k': k, 'ds': ds, 'di': di, 'imagen_path': imagen_path})
-            self.accept() # Cierra el diálogo de gestión de modelos

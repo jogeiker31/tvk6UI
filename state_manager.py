@@ -178,7 +178,7 @@ class StateManager(QObject): # Inherit from QObject
         if command == 'reset':
             self.history = [] # Limpiamos el historial
             self.clear_screen_requested.emit() # Siempre limpiar pantalla en reset
-            self.set_state('MAIN_MENU')
+            self.set_state('INIT')
             return
         
         if command == 'esc':
