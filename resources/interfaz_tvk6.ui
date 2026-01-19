@@ -498,7 +498,7 @@
               <string notr="true">color: #007bff;</string>
              </property>
              <property name="text">
-              <string>SISTEMA TVK6</string>
+              <string>SISTEMA TVK6 Nexo</string>
              </property>
              <property name="alignment">
               <set>Qt::AlignmentFlag::AlignCenter</set>

@@ -75,7 +75,7 @@ class MainWindow(QMainWindow):
         logo_container = QHBoxLayout()
         logo_container.addStretch()
         logo_label = QLabel()
-        logo_path = resource_path('logo.png')
+         = resource_path('logo.png')
         if os.path.exists(logo_path):
             pixmap = QPixmap(logo_path)
             # Ajustamos el tamaño para que no sea demasiado grande en la UI principal
