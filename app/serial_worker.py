@@ -10,7 +10,7 @@ import time
 from PySide6.QtCore import QObject, Signal, Slot, QCoreApplication
 
 # Importamos la configuración
-from config import BAUDRATE, TIMEOUT
+from .config import BAUDRATE, TIMEOUT
 
 class SerialWorker(QObject):
     """Maneja la comunicación serial en un hilo separado para evitar que la UI se congele."""

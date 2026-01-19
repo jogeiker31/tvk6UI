@@ -8,8 +8,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 
 # Importaciones de nuestros módulos
-from pdf_generator import generate_certificate_pdf
-from themes import DARK_THEME, LIGHT_THEME
+from .pdf_generator import generate_certificate_pdf
+from .themes import DARK_THEME, LIGHT_THEME
 
 import sys
 
@@ -19,9 +19,10 @@ def resource_path(relative_path):
         # PyInstaller crea una carpeta temporal y almacena la ruta en _MEIPASS
         base_path = sys._MEIPASS
     except Exception:
-        base_path = os.path.abspath(".")
+        # En desarrollo, subimos un nivel desde 'app' para llegar a la raíz del proyecto.
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-    return os.path.join(base_path, relative_path)
+    return os.path.join(base_path, "resources", relative_path)
 class HistoryDetailDialog(QDialog):
     """
     Muestra los detalles de un registro de calibración en un formato similar al certificado.

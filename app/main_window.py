@@ -15,24 +15,24 @@ from PySide6.QtGui import QKeySequence, QPixmap
 
 # Importaciones de nuestros módulos
 from serial.tools import list_ports
-from serial_connection_manager import SerialConnectionManager
-from config import ANSI_ESCAPE, PORT, BAUDRATE
-from ui_panels import MeasurementPanel
-from menu_manager import MenuManager
-from state_manager import StateManager
-from database import DatabaseManager
-from ui_model_manager import ModelManagerDialog
-from calibrator_manager_dialog import CalibratorManagerDialog
-from calibration_view import CalibrationTableView
-from ui_input_dialog import InputDialog
-from sequence_manager import SequenceManager
-from screen_emulator import ScreenEmulator
+from .serial_connection_manager import SerialConnectionManager
+from .config import ANSI_ESCAPE, PORT, BAUDRATE
+from .ui_panels import MeasurementPanel
+from .menu_manager import MenuManager
+from .state_manager import StateManager
+from .database import DatabaseManager
+from .ui_model_manager import ModelManagerDialog
+from .calibrator_manager_dialog import CalibratorManagerDialog
+from .calibration_view import CalibrationTableView
+from .ui_input_dialog import InputDialog
+from .sequence_manager import SequenceManager
+from .screen_emulator import ScreenEmulator
 import json
 import os, sys
 import datetime
-from themes import DARK_THEME, LIGHT_THEME
+from .themes import DARK_THEME, LIGHT_THEME
 # --- INICIO DE LA MODIFICACIÓN: Importar lógica de acciones ---
-from main_window_actions import (open_settings_dialog, open_model_manager,
+from .main_window_actions import (open_settings_dialog, open_model_manager,
                                  open_calibrator_manager, open_history_view,
                                  handle_calibration_data_entry, handle_meter_data_entry, handle_save_protocol,
                                  run_calibration_sequence)
@@ -44,9 +44,10 @@ def resource_path(relative_path):
         # PyInstaller crea una carpeta temporal y almacena la ruta en _MEIPASS
         base_path = sys._MEIPASS
     except Exception:
-        base_path = os.path.abspath(".")
+        # En desarrollo, subimos un nivel desde 'app' para llegar a la raíz del proyecto.
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-    return os.path.join(base_path, relative_path)
+    return os.path.join(base_path, "resources", relative_path)
 
 class MainWindow(QMainWindow):
     """Ventana principal que carga la UI y conecta la lógica."""
@@ -115,7 +116,7 @@ class MainWindow(QMainWindow):
         # Aplicar el tema inicial
         self._apply_theme(self.current_theme)
 
-        self.setWindowTitle("TVK6 Serial Console - Python 3.11 / PySide6")
+        self.setWindowTitle("TVK6 Nexo")
 
         self.showMaximized()
 

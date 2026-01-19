@@ -5,10 +5,9 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
-        ('interfaz_tvk6.ui', '.'),
-        ('menu_config.json', '.'),
-        ('historial_dialog.ui', '.'),
-        ('logo.png', '.')
+        ('resources/interfaz_tvk6.ui', 'resources'),
+        ('resources/menu_config.json', 'resources'),
+        ('resources/logo.png', 'resources')
     ],
     hiddenimports=[],
     hookspath=[],
@@ -24,7 +23,7 @@ exe = EXE(
     pyz,
     a.scripts,
     [],
-    name='TVK6_Console',
+    name='TVK6_Nexo',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -43,5 +42,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='TVK6_Console',
+    name='TVK6_Nexo',
 )

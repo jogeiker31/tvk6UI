@@ -7,26 +7,28 @@ ejecuta el bucle de eventos.
 import sys
 import os
 from PySide6.QtWidgets import QApplication
-
-from main_window import MainWindow
+from app.main_window import MainWindow
 
 def resource_path(relative_path):
     """ Obtiene la ruta absoluta al recurso, funciona para desarrollo y para PyInstaller """
     try:
         # PyInstaller crea una carpeta temporal y almacena la ruta en _MEIPASS
+        # La carpeta 'resources' debe estar al mismo nivel que el ejecutable.
         base_path = sys._MEIPASS
     except Exception:
+        # En desarrollo, la ruta base es el directorio del proyecto.
         base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
+    
+    # Construimos la ruta hacia la carpeta 'resources'
+    return os.path.join(base_path, "resources", relative_path)
 
 # --- Main ---
 if __name__ == '__main__':
     QApplication.setOrganizationName("MiEmpresa")
-    QApplication.setApplicationName("TVK6SerialConsole")
+    QApplication.setApplicationName("TVK6Nexo")
 
     # Nombre del archivo UI
-    UI_FILE = resource_path('interfaz_tvk6.ui')
+    UI_FILE = resource_path('interfaz_tvk6.ui') # Ahora buscará en la carpeta 'resources'
     try:
         open(UI_FILE, 'r').close()
     except FileNotFoundError:

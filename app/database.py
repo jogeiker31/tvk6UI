@@ -6,7 +6,7 @@ import os
 import sys
 from pathlib import Path
 
-def get_app_data_path(app_name="TVK6SerialApp"):
+def get_app_data_path(app_name="TVK6Nexo"):
     """
     Obtiene una ruta segura y persistente para almacenar los datos de la aplicación.
     Crea el directorio si no existe.

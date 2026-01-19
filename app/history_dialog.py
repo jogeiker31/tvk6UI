@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem, QPushButton, QWidget, QAbstractItemView, QSizePolicy
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import Qt
-from database import DatabaseManager
+from .database import DatabaseManager
 from pathlib import Path
 
 class HistoryDialog(QDialog):

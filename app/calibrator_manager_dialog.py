@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QTableWidget, 
                                QHeaderView, QMessageBox, QLabel, QFileDialog)
 from PySide6.QtCore import Qt, Signal, Slot, QSize
 from PySide6.QtGui import QPixmap, QIcon
-from database import DatabaseManager, get_app_data_path
+from .database import DatabaseManager, get_app_data_path
 
 class CalibratorManagerDialog(QDialog):
     """

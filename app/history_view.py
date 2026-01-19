@@ -7,9 +7,9 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 # Importamos el nuevo diálogo de detalles
-from history_detail_dialog import HistoryDetailDialog
+from .history_detail_dialog import HistoryDetailDialog
 # Importamos los temas
-from themes import DARK_THEME, LIGHT_THEME
+from .themes import DARK_THEME, LIGHT_THEME
 
 class HistoryView(QDialog):
     """

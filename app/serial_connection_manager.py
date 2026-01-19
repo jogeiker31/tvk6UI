@@ -6,7 +6,7 @@ el SerialWorker para la comunicación serial.
 """
 from PySide6.QtCore import QThread
 
-from serial_worker import SerialWorker
+from .serial_worker import SerialWorker
 
 class SerialConnectionManager:
     """Gestiona el ciclo de vida del hilo de comunicación serial."""

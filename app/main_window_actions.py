@@ -12,14 +12,14 @@ import datetime
 from PySide6.QtWidgets import QDialog, QMessageBox
 
 # Importaciones de la aplicación
-from settings_dialog import SettingsDialog
-from ui_model_manager import ModelManagerDialog
-from calibrator_manager_dialog import CalibratorManagerDialog
-from history_view import HistoryView
-from ui_input_dialog import InputDialog
-from certificate_dialog import CertificateDialog
-from pdf_generator import generate_certificate_pdf
-from serials_dialog import SerialsDialog
+from .settings_dialog import SettingsDialog
+from .ui_model_manager import ModelManagerDialog
+from .calibrator_manager_dialog import CalibratorManagerDialog
+from .history_view import HistoryView
+from .ui_input_dialog import InputDialog
+from .certificate_dialog import CertificateDialog
+from .pdf_generator import generate_certificate_pdf
+from .serials_dialog import SerialsDialog
 
 def open_settings_dialog(main_window):
     """Abre el diálogo de configuración."""
